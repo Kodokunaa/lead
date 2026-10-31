@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+@import '@lead/ui-tokens/tokens.css';
+
+/* Expose the shared design tokens to Tailwind utilities (bg-surface, text-muted, ...). */
+@theme inline {
+  --color-background: var(--lead-background);
+  --color-surface: var(--lead-surface);
+  --color-surface-muted: var(--lead-surface-muted);
+  --color-border: var(--lead-border);
+  --color-text: var(--lead-text);
+  --color-muted: var(--lead-text-muted);
+  --color-brand: var(--lead-brand);
+  --color-brand-text: var(--lead-brand-text);
+  --color-success: var(--lead-success);
+  --color-warning: var(--lead-warning);
+  --color-danger: var(--lead-danger);
+  --color-focus: var(--lead-focus);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--lead-background);
+  color: var(--lead-text);
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lead-focus);
+  outline-offset: 2px;
+}

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793448453867,
+      "tag": "0000_init_audit_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793448457938,
+      "tag": "0001_audit_events_append_only",
+      "breakpoints": true
+    }
+  ]
+}
