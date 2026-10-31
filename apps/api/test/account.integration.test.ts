@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Secret, TOTP } from 'otpauth';
 import type { Sql } from 'postgres';
 import request from 'supertest';
@@ -338,10 +339,31 @@ describe('MFA, registration and password recovery (integration)', () => {
       const email = await createUser(sql);
 
       await forgot(email).expect(202);
+      await accounts.drain();
       await forgot(email).expect(202);
       await accounts.drain();
 
       expect(testApp.mailer.sent.filter((message) => message.to === email)).toHaveLength(1);
+    });
+
+    it('waits for a link being issued in parallel instead of sending a second one', async () => {
+      const email = await createUser(sql);
+      const [user] = await sql`select id from users where email = ${email}`;
+      const client = { ipAddress: '127.0.0.1', userAgent: 'vitest' };
+
+      // Hold another request half-way through issuing a link, then start this one.
+      await sql.begin(async (tx) => {
+        await tx`select id from users where id = ${user?.id as string} for update`;
+        await tx`
+          insert into account_tokens (user_id, purpose, token_hash, expires_at)
+          values (${user?.id as string}, 'password_reset', ${randomUUID()},
+                  now() + interval '30 minutes')`;
+        accounts.requestPasswordReset(email, client);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+      await accounts.drain();
+
+      expect(testApp.mailer.sent.filter((message) => message.to === email)).toHaveLength(0);
     });
 
     it('sends nothing for unknown or pending accounts but answers the same', async () => {

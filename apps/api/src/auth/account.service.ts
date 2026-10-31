@@ -159,6 +159,9 @@ export class AccountService implements OnApplicationShutdown {
   private async sendLink(user: UserRow, purpose: AccountTokenPurpose): Promise<void> {
     const token = newRefreshToken();
     const issued = await this.db.transaction(async (tx) => {
+      // Lock the user row so parallel requests take turns; otherwise both could pass the
+      // cooldown check before either writes its token.
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, user.id)).for('update');
       const [recent] = await tx
         .select({ id: accountTokens.id })
         .from(accountTokens)
