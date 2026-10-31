@@ -28,8 +28,11 @@ pnpm install
 cp .env.example .env   # then replace every change-me value
 pnpm services:up
 pnpm build
-pnpm --filter @lead/api db:migrate
+pnpm --filter @lead/api db:migrate   # also sets the lead_app role's password
+pnpm --filter @lead/api db:seed      # optional: demo accounts using SEED_PASSWORD
 ```
+
+The API connects as `lead_app`, a role with data access only: it cannot change tables, and it can only read and add audit events. Migrations run as the database owner (`MIGRATION_DATABASE_URL`).
 
 ## Daily use
 
@@ -40,7 +43,7 @@ pnpm typecheck
 pnpm format
 ```
 
-Until Phase 1 adds real sign-in, the web app opens a **preview sign-in** that lets you enter as Student, Teacher or Administrator to view each role's layout.
+The API has real sign-in (`POST /api/auth/sign-in`, `refresh`, `sign-out`, `GET /api/auth/me`). The web app still opens a **preview sign-in** that lets you enter as Student, Teacher or Administrator to view each role's layout, until the sign-in screen is connected later in Phase 1.
 
 ## Data and privacy
 

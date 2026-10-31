@@ -15,6 +15,20 @@
       "when": 1793448457938,
       "tag": "0001_audit_events_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793487371343,
+      "tag": "0002_users_and_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793487375545,
+      "tag": "0003_app_role",
+      "breakpoints": true
     }
   ]
 }

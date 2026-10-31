@@ -20,23 +20,35 @@ export const REASON_REQUIRED_ACTIONS = [
   'backup.restored',
 ] as const;
 
+/**
+ * Every action the system may record. A closed list, so a misspelled action fails validation
+ * instead of quietly skipping the reason rule. Add new actions here as features land.
+ */
+export const KNOWN_ACTIONS = [
+  ...REASON_REQUIRED_ACTIONS,
+  'auth.signed_in',
+  'auth.sign_in_failed',
+  'auth.locked_out',
+  'auth.signed_out',
+  'auth.session_revoked',
+  'auth.refresh_reused',
+  'intervention.assigned',
+  'backup.completed',
+] as const;
+
+export type AuditAction = (typeof KNOWN_ACTIONS)[number];
+
 const reasonRequired: ReadonlySet<string> = new Set(REASON_REQUIRED_ACTIONS);
 
 export function isReasonRequired(action: string): boolean {
   return reasonRequired.has(action);
 }
 
-/** `module.verb` or `module.verb_detail`, lowercase, e.g. `grade.changed_after_release`. */
-const actionSchema = z
-  .string()
-  .regex(/^[a-z][a-z_]*\.[a-z][a-z_]*$/, 'Action must look like "module.verb"')
-  .max(100);
-
 export const auditEventInputSchema = z
   .object({
     actorId: z.uuid().nullable(),
     actorRole: roleSchema.nullable(),
-    action: actionSchema,
+    action: z.enum(KNOWN_ACTIONS),
     targetType: z.string().min(1).max(60).nullable(),
     targetId: z.string().min(1).max(100).nullable(),
     outcome: z.enum(AUDIT_OUTCOMES),

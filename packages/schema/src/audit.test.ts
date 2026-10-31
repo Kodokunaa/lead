@@ -62,8 +62,8 @@ describe('auditEventInputSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects actions that are not in module.verb form', () => {
-    for (const action of ['Grade.Changed', 'grade', 'grade changed', '.changed']) {
+  it('rejects actions that are not on the known list', () => {
+    for (const action of ['Grade.Changed', 'grade', 'grade.changed_after_relase', 'made.up']) {
       expect(auditEventInputSchema.safeParse({ ...baseEvent, action }).success).toBe(false);
     }
   });
@@ -83,6 +83,6 @@ describe('auditEventInputSchema', () => {
 describe('isReasonRequired', () => {
   it('is true for consequential actions and false for routine ones', () => {
     expect(isReasonRequired('account.deactivated')).toBe(true);
-    expect(isReasonRequired('user.signed_in')).toBe(false);
+    expect(isReasonRequired('auth.signed_in')).toBe(false);
   });
 });

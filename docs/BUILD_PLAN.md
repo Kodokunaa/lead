@@ -73,13 +73,25 @@ Phase 7 also prepares the Chapter 3–4 evaluation (functionality, usability, pe
 
 **Phase 0 — done (2026-10-31).** Monorepo, Docker services, CI (format, lint, build, typecheck, test), shared `schema` and `ui-tokens` packages, NestJS API with health check and append-only audit module, React shell with per-role sidebars and a dev-only preview sign-in. The API integration tests (audit + health) need `pnpm services:up` and have not run locally yet.
 
-Carried into Phase 1 from the Phase 0 review:
+**Phase 1 — in progress.**
 
-- Separate database roles: a migrator role owns tables; the API's runtime role gets only `SELECT, INSERT` on `audit_events`, so it cannot disable the append-only triggers.
-- `AuditService.record(input, tx?)` so a change and its audit row commit in one transaction; replace the HTTP exception with a domain error.
-- A closed `KNOWN_ACTIONS` list so a misspelled action cannot skip the reason rule.
-- Rate limiting, request body limits and CSRF/SameSite handling for the session cookie.
-- Replace the preview role with real sessions; sync sign-out across tabs.
+Slice 1 (API sign-in core) — done:
+
+- Separate database roles: migrations run as the owner; the API runs as `lead_app`, which owns nothing and has only `SELECT, INSERT` on `audit_events`.
+- `AuditService.record(input, tx?)` with `AuditValidationError`, and a closed `KNOWN_ACTIONS` list.
+- `users` and `sessions` tables; Argon2id passwords; sign-in, refresh, sign-out and `me` endpoints.
+- 15-minute access tokens (JWT) checked against a live session on every request, so sign-out and deactivation take effect at once.
+- Refresh tokens in an httpOnly, SameSite=Strict cookie: rotated on each use, 7 days idle and 30 days absolute. Replaying an old token ends the whole session; a duplicate within 10 seconds (two tabs, a retry) gets 409 and changes nothing.
+- Account lockout after 5 failed sign-ins (15 minutes), counted in one atomic statement; the same error for unknown email, wrong password and lockout. Unknown emails are audited as a hash, not the typed text.
+- Per-IP rate limits sized for classrooms behind one campus IP; `TRUST_PROXY_HOPS` for deployment behind a reverse proxy; 100 kB JSON body limit; Origin check on cookie endpoints.
+- `db:seed` for generated demo accounts (refuses to run in production).
+- Reviewed by the security and TypeScript reviewers; all findings fixed. Open: a job to purge expired session rows (Phase 7), and keeping Postgres `log_statement` off while migrations set the role password.
+
+Next slices:
+
+2. MFA (TOTP setup and verification, recovery codes), registration with approval, password recovery (H02–H05).
+3. Web: real sign-in screen, token refresh (one refresh at a time across tabs), sign-out synced across tabs, remove the preview role.
+4. Admin: users, account details, roles and permissions, approval queue (A02–A04, A16); profile, preferences, sessions list, search (H07–H09); access denied (X04).
 
 ## Seed data
 

@@ -33,7 +33,8 @@ jobs:
           --health-retries 20
 
     env:
-      TEST_DATABASE_URL: postgres://lead:ci-only-password@127.0.0.1:5432/lead_test
+      TEST_MIGRATION_DATABASE_URL: postgres://lead:ci-only-password@127.0.0.1:5432/lead_test
+      TEST_DATABASE_URL: postgres://lead_app:ci-only-app-password@127.0.0.1:5432/lead_test
 
     steps:
       - uses: actions/checkout@v5

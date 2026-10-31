@@ -1,29 +1,17 @@
-import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/bootstrap';
-import { ENV } from '../src/config/config.module';
-import type { Env } from '../src/config/env';
-import { prepareTestDatabase } from './test-database';
+import { createTestApp, type TestApp } from './test-app';
 
 describe('GET /api/health (integration)', () => {
-  let app: INestApplication;
-  const server = () => app.getHttpServer() as Parameters<typeof request>[0];
+  let testApp: TestApp;
+  const server = () => testApp.server();
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = await prepareTestDatabase();
-    process.env.WEB_ORIGIN ??= 'http://localhost:5173';
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    configureApp(app, app.get<Env>(ENV));
-    await app.init();
+    testApp = await createTestApp();
   });
 
   afterAll(async () => {
-    await app.close();
+    await testApp.app.close();
   });
 
   it('reports the API and database as up', async () => {

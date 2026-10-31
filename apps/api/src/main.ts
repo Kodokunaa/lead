@@ -1,13 +1,14 @@
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
 import { ENV } from './config/config.module';
 import type { Env } from './config/env';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const env = app.get<Env>(ENV);
   configureApp(app, env);
   await app.listen(env.API_PORT, env.API_HOST);

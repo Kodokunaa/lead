@@ -9,6 +9,9 @@ export const SQL_CLIENT = Symbol('SQL_CLIENT');
 export const DATABASE = Symbol('DATABASE');
 
 export type Database = PostgresJsDatabase<typeof schema>;
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+/** Either the pool or an open transaction; services accept this so callers can compose writes. */
+export type DbExecutor = Database | Transaction;
 
 @Global()
 @Module({

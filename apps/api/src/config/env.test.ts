@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { loadEnv } from './env';
+import { loadEnv, loadMigrationEnv } from './env';
 
 const valid = {
   WEB_ORIGIN: 'http://localhost:5173',
-  DATABASE_URL: 'postgres://lead:secret@127.0.0.1:5432/lead',
+  DATABASE_URL: 'postgres://lead_app:secret@127.0.0.1:5432/lead',
+  JWT_SECRET: 'x'.repeat(32),
 };
 
 describe('loadEnv', () => {
@@ -24,12 +25,26 @@ describe('loadEnv', () => {
   });
 
   it('lists every invalid variable in one error', () => {
-    expect(() => loadEnv({ API_PORT: 'abc' })).toThrow(/API_PORT.*WEB_ORIGIN.*DATABASE_URL/s);
+    expect(() => loadEnv({ API_PORT: 'abc' })).toThrow(
+      /API_PORT.*WEB_ORIGIN.*DATABASE_URL.*JWT_SECRET/s,
+    );
   });
 
   it('rejects a non-Postgres database URL', () => {
     expect(() => loadEnv({ ...valid, DATABASE_URL: 'mysql://x@localhost/db' })).toThrow(
       /DATABASE_URL/,
+    );
+  });
+
+  it('rejects a short JWT secret', () => {
+    expect(() => loadEnv({ ...valid, JWT_SECRET: 'too-short' })).toThrow(/JWT_SECRET/);
+  });
+});
+
+describe('loadMigrationEnv', () => {
+  it('requires both the owner and runtime database URLs', () => {
+    expect(() => loadMigrationEnv({ DATABASE_URL: valid.DATABASE_URL })).toThrow(
+      /MIGRATION_DATABASE_URL/,
     );
   });
 });

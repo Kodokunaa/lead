@@ -1,14 +1,18 @@
-import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { AuditEventInput } from '@lead/schema';
 import { randomUUID } from 'node:crypto';
-import type { Sql } from 'postgres';
+import postgres, { type Sql } from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AuditModule } from '../src/audit/audit.module';
-import { AuditService } from '../src/audit/audit.service';
+import { AuditService, AuditValidationError } from '../src/audit/audit.service';
 import { ConfigModule } from '../src/config/config.module';
-import { DatabaseModule, SQL_CLIENT } from '../src/database/database.module';
-import { prepareTestDatabase } from './test-database';
+import {
+  DATABASE,
+  DatabaseModule,
+  SQL_CLIENT,
+  type Database,
+} from '../src/database/database.module';
+import { prepareTestDatabase, setTestApiEnv } from './test-database';
 
 function event(overrides: Partial<AuditEventInput> = {}): AuditEventInput {
   return {
@@ -29,12 +33,17 @@ function event(overrides: Partial<AuditEventInput> = {}): AuditEventInput {
 
 describe('AuditService (integration)', () => {
   let audit: AuditService;
+  /** Connected as lead_app, like the API. */
   let sql: Sql;
+  let db: Database;
+  /** Connected as the owner, to prove even the owner cannot rewrite history. */
+  let ownerSql: Sql;
   let close: () => Promise<void>;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = await prepareTestDatabase();
-    process.env.WEB_ORIGIN ??= 'http://localhost:5173';
+    const database = await prepareTestDatabase();
+    setTestApiEnv(database.appUrl);
+    ownerSql = postgres(database.ownerUrl, { max: 1, onnotice: () => undefined });
 
     const moduleRef = await Test.createTestingModule({
       imports: [ConfigModule, DatabaseModule, AuditModule],
@@ -44,11 +53,13 @@ describe('AuditService (integration)', () => {
 
     audit = app.get(AuditService);
     sql = app.get<Sql>(SQL_CLIENT);
+    db = app.get<Database>(DATABASE);
     close = () => app.close();
   });
 
   afterAll(async () => {
     await close();
+    await ownerSql.end({ timeout: 5 });
   });
 
   it('stores an event and returns the saved row', async () => {
@@ -65,7 +76,7 @@ describe('AuditService (integration)', () => {
   it('refuses a consequential action without a reason and stores nothing', async () => {
     const input = event({ action: 'grade.changed_after_release' });
 
-    await expect(audit.record(input)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(audit.record(input)).rejects.toBeInstanceOf(AuditValidationError);
 
     const [result] =
       await sql`select count(*)::int as n from audit_events where target_id = ${input.targetId}`;
@@ -85,17 +96,48 @@ describe('AuditService (integration)', () => {
     expect(row.reason).toBe('Rubric correction');
   });
 
-  it('blocks UPDATE, DELETE and TRUNCATE at the database level', async () => {
+  it('blocks UPDATE, DELETE and TRUNCATE even for the table owner', async () => {
+    const row = await audit.record(event());
+
+    await expect(
+      ownerSql`update audit_events set action = 'tampered.event' where id = ${row.id}`,
+    ).rejects.toThrow(/append-only/);
+    await expect(ownerSql`delete from audit_events where id = ${row.id}`).rejects.toThrow(
+      /append-only/,
+    );
+    await expect(ownerSql`truncate audit_events`).rejects.toThrow(/append-only/);
+
+    const [stored] = await sql`select action from audit_events where id = ${row.id}`;
+    expect(stored?.action).toBe('intervention.assigned');
+  });
+
+  it('gives the API role no way to change history or switch off the triggers', async () => {
     const row = await audit.record(event());
 
     await expect(
       sql`update audit_events set action = 'tampered.event' where id = ${row.id}`,
-    ).rejects.toThrow(/append-only/);
-    await expect(sql`delete from audit_events where id = ${row.id}`).rejects.toThrow(/append-only/);
-    await expect(sql`truncate audit_events`).rejects.toThrow(/append-only/);
+    ).rejects.toThrow(/permission denied/);
+    await expect(sql`delete from audit_events where id = ${row.id}`).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(
+      sql`alter table audit_events disable trigger audit_events_no_update_delete`,
+    ).rejects.toThrow(/must be owner/);
+  });
 
-    const [stored] = await sql`select action from audit_events where id = ${row.id}`;
-    expect(stored?.action).toBe('intervention.assigned');
+  it('rolls the audit row back with the caller transaction', async () => {
+    const input = event();
+
+    await expect(
+      db.transaction(async (tx) => {
+        await audit.record(input, tx);
+        throw new Error('change failed');
+      }),
+    ).rejects.toThrow('change failed');
+
+    const [result] =
+      await sql`select count(*)::int as n from audit_events where target_id = ${input.targetId}`;
+    expect(result?.n).toBe(0);
   });
 
   it('lists recent events newest first and clamps the page size', async () => {

@@ -1,10 +1,23 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { auditEventInputSchema, type AuditEventInput } from '@lead/schema';
 import { desc } from 'drizzle-orm';
-import { DATABASE, type Database } from '../database/database.module';
+import { DATABASE, type Database, type DbExecutor } from '../database/database.module';
 import { auditEvents, type AuditEventRow } from '../database/schema';
 
 const MAX_PAGE_SIZE = 100;
+
+export interface AuditIssue {
+  readonly path: string;
+  readonly message: string;
+}
+
+/** Thrown when server code builds an invalid audit event. A bug, not a client error. */
+export class AuditValidationError extends Error {
+  constructor(readonly issues: readonly AuditIssue[]) {
+    super(`Invalid audit event: ${issues.map((i) => `${i.path} ${i.message}`).join('; ')}`);
+    this.name = 'AuditValidationError';
+  }
+}
 
 @Injectable()
 export class AuditService {
@@ -13,20 +26,20 @@ export class AuditService {
   /**
    * Validates and appends one event. Throws if a reason-required action has no reason,
    * so callers cannot silently skip the audit trail for consequential changes.
+   * Pass the caller's transaction so the change and its audit row commit or roll back together.
    */
-  async record(input: AuditEventInput): Promise<AuditEventRow> {
+  async record(input: AuditEventInput, tx: DbExecutor = this.db): Promise<AuditEventRow> {
     const parsed = auditEventInputSchema.safeParse(input);
     if (!parsed.success) {
-      throw new BadRequestException({
-        message: 'Invalid audit event',
-        issues: parsed.error.issues.map((issue) => ({
+      throw new AuditValidationError(
+        parsed.error.issues.map((issue) => ({
           path: issue.path.join('.'),
           message: issue.message,
         })),
-      });
+      );
     }
 
-    const [row] = await this.db.insert(auditEvents).values(parsed.data).returning();
+    const [row] = await tx.insert(auditEvents).values(parsed.data).returning();
     if (!row) throw new Error('Audit insert returned no row');
     return row;
   }

@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import type { Sql } from 'postgres';
+import { Public } from '../auth/auth.guard';
 import { SQL_CLIENT } from '../database/database.module';
 
 export interface HealthStatus {
@@ -7,6 +8,7 @@ export interface HealthStatus {
   readonly database: 'up';
 }
 
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(SQL_CLIENT) private readonly sql: Sql) {}
