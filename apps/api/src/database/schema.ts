@@ -59,6 +59,8 @@ export const sessions = pgTable(
     createdAt: createdAt(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /** Set only when the token was swapped for a successor, never by sign-out or replay. */
+    rotatedAt: timestamp('rotated_at', { withTimezone: true }),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
   },

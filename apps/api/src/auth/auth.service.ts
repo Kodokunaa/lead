@@ -157,7 +157,8 @@ export class AuthService implements OnModuleInit {
       const now = new Date();
 
       if (session.revokedAt) {
-        if (now.getTime() - session.revokedAt.getTime() < REFRESH_GRACE_MS) {
+        const rotatedAt = session.rotatedAt?.getTime();
+        if (rotatedAt !== undefined && now.getTime() - rotatedAt < REFRESH_GRACE_MS) {
           return 'session_superseded' as const;
         }
         // Log only the first replay; later ones hit an already-dead family.
@@ -179,7 +180,10 @@ export class AuthService implements OnModuleInit {
         return 'session_invalid' as const;
       }
 
-      await tx.update(sessions).set({ revokedAt: now }).where(eq(sessions.id, session.id));
+      await tx
+        .update(sessions)
+        .set({ revokedAt: now, rotatedAt: now })
+        .where(eq(sessions.id, session.id));
       return this.issueSession(tx, user, session.familyId, session.familyStartedAt, client);
     });
 

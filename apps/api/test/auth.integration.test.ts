@@ -174,7 +174,8 @@ describe('authentication (integration)', () => {
 
     // Move the rotation outside the duplicate-request grace window.
     await sql`
-      update sessions set revoked_at = revoked_at - interval '1 minute'
+      update sessions
+      set revoked_at = revoked_at - interval '1 minute', rotated_at = rotated_at - interval '1 minute'
       where revoked_at is not null
         and user_id = (select id from users where email = ${email})`;
 
@@ -227,7 +228,8 @@ describe('authentication (integration)', () => {
     const [live] = await sql`
       select expires_at from sessions
       where revoked_at is null and user_id = (select id from users where email = ${email})`;
-    const expiresAt = (live?.expires_at as Date).getTime();
+    // Drizzle's postgres-js setup returns timestamps from raw queries as strings.
+    const expiresAt = new Date(live?.expires_at as string).getTime();
     expect(expiresAt).toBeLessThanOrEqual(Date.now() + 60 * 60 * 1000 + 5_000);
   });
 
