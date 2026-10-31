@@ -31,7 +31,12 @@ export async function seed(databaseUrl: string, password: string): Promise<numbe
     const inserted = await db
       .insert(schema.users)
       .values(
-        SEED_ACCOUNTS.map((account) => ({ ...account, status: 'active' as const, passwordHash })),
+        SEED_ACCOUNTS.map((account) => ({
+          ...account,
+          status: 'active' as const,
+          passwordHash,
+          emailVerifiedAt: new Date(),
+        })),
       )
       .onConflictDoNothing({ target: schema.users.email })
       .returning({ id: schema.users.id });

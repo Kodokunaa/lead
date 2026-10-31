@@ -5,6 +5,7 @@ const valid = {
   WEB_ORIGIN: 'http://localhost:5173',
   DATABASE_URL: 'postgres://lead_app:secret@127.0.0.1:5432/lead',
   JWT_SECRET: 'x'.repeat(32),
+  MFA_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64url'),
 };
 
 describe('loadEnv', () => {

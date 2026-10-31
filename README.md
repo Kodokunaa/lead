@@ -21,6 +21,8 @@ BSIT capstone, Mindoro State University – Calapan Campus. See [docs/BUILD_PLAN
 
 The project Postgres listens on **port 5433** so it does not clash with a PostgreSQL already installed on 5432.
 
+**Without Docker:** an installed PostgreSQL 16 or newer works too. Run `powershell -ExecutionPolicy Bypass -File infra\local-postgres-setup.ps1` once (it asks for the `postgres` admin password and creates the role and databases from `.env`), then change the port in the four database URLs in `.env` to the installed server's port, usually 5432. Redis and MinIO still need Docker once later phases use them.
+
 ## Setup
 
 ```bash
@@ -43,7 +45,7 @@ pnpm typecheck
 pnpm format
 ```
 
-The API has real sign-in (`POST /api/auth/sign-in`, `refresh`, `sign-out`, `GET /api/auth/me`). The web app still opens a **preview sign-in** that lets you enter as Student, Teacher or Administrator to view each role's layout, until the sign-in screen is connected later in Phase 1.
+The API has real sign-in (`POST /api/auth/sign-in`, `refresh`, `sign-out`, `GET /api/auth/me`), two-step verification (`/api/auth/mfa/*`), registration with email confirmation (`register`, `email/verify`) and password recovery (`password/forgot`, `password/reset`). In development, emails are written as `.eml` files to `storage/outbox` instead of being sent. The web app still opens a **preview sign-in** that lets you enter as Student, Teacher or Administrator to view each role's layout, until the sign-in screen is connected later in Phase 1.
 
 ## Data and privacy
 

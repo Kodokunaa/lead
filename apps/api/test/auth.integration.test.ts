@@ -1,35 +1,30 @@
 import type { AccountStatus, Role } from '@lead/schema';
-import { randomUUID } from 'node:crypto';
 import type { Sql } from 'postgres';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { REFRESH_COOKIE, SIGN_IN_LIMIT_PER_MINUTE } from '../src/auth/auth.controller';
+import { SIGN_IN_LIMIT_PER_MINUTE } from '../src/auth/http';
+import { REFRESH_COOKIE } from '../src/auth/session-cookies';
 import { AuthError, AuthService, MAX_FAILED_SIGN_INS } from '../src/auth/auth.service';
-import { hashPassword } from '../src/auth/password';
 import { SQL_CLIENT } from '../src/database/database.module';
 import { createTestApp, type TestApp } from './test-app';
+import {
+  auditCount as countAuditEvents,
+  createUser as createTestUser,
+  TEST_PASSWORD,
+  WEB_ORIGIN,
+} from './test-users';
 
-const PASSWORD = 'correct horse battery staple';
-const WEB_ORIGIN = 'http://localhost:5173';
+const PASSWORD = TEST_PASSWORD;
 const client = { ipAddress: '127.0.0.1', userAgent: 'vitest' };
 
 describe('authentication (integration)', () => {
   let testApp: TestApp;
   let sql: Sql;
   let auth: AuthService;
-  let passwordHash: string;
   const server = () => testApp.server();
 
-  async function createUser(
-    overrides: { role?: Role; status?: AccountStatus } = {},
-  ): Promise<string> {
-    const email = `user-${randomUUID()}@lead.test`;
-    await sql`
-      insert into users (email, display_name, role, status, password_hash)
-      values (${email}, 'Test User', ${overrides.role ?? 'student'},
-              ${overrides.status ?? 'active'}, ${passwordHash})`;
-    return email;
-  }
+  const createUser = (overrides: { role?: Role; status?: AccountStatus } = {}) =>
+    createTestUser(sql, overrides);
 
   function refreshCookieFrom(response: request.Response): string {
     const cookies = ([] as string[]).concat(response.headers['set-cookie'] ?? []);
@@ -45,18 +40,13 @@ describe('authentication (integration)', () => {
       .expect(200);
   }
 
-  async function auditCount(action: string, actorEmail: string): Promise<number> {
-    const [row] = await sql`
-      select count(*)::int as n from audit_events a join users u on u.id = a.actor_id
-      where a.action = ${action} and u.email = ${actorEmail}`;
-    return (row?.n as number | undefined) ?? 0;
-  }
+  const auditCount = (action: string, actorEmail: string) =>
+    countAuditEvents(sql, action, actorEmail);
 
   beforeAll(async () => {
     testApp = await createTestApp();
     sql = testApp.app.get<Sql>(SQL_CLIENT);
     auth = testApp.app.get(AuthService);
-    passwordHash = await hashPassword(PASSWORD);
   });
 
   afterAll(async () => {

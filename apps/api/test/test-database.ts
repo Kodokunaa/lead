@@ -36,4 +36,5 @@ export function setTestApiEnv(appUrl: string): void {
   process.env.DATABASE_URL = appUrl;
   process.env.WEB_ORIGIN ??= 'http://localhost:5173';
   process.env.JWT_SECRET ??= 'test-only-jwt-secret-that-is-long-enough';
+  process.env.MFA_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64url');
 }

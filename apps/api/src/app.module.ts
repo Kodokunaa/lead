@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
+import { MailModule } from './mail/mail.module';
 
 /**
  * Default per-IP request budget, sized for a classroom behind one shared campus IP.
@@ -19,6 +20,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     ConfigModule,
     DatabaseModule,
     AuditModule,
+    MailModule,
     AuthModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],

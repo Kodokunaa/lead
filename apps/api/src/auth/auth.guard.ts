@@ -27,6 +27,8 @@ export const Roles = (...roles: Role[]) => SetMetadata(ROLES, roles);
 
 export interface AuthenticatedRequest extends Request {
   user?: UserRow;
+  /** The signed-in session family, e.g. to keep it when signing out other devices. */
+  sessionFamily?: string;
 }
 
 /** The signed-in user. Only valid on routes that are not @Public(). */
@@ -35,6 +37,15 @@ export const CurrentUserRow = createParamDecorator((_: unknown, context: Executi
   if (!user) throw new AuthError('session_invalid');
   return user;
 });
+
+/** The current session family. Only valid on routes that are not @Public(). */
+export const CurrentSessionFamily = createParamDecorator(
+  (_: unknown, context: ExecutionContext) => {
+    const family = context.switchToHttp().getRequest<AuthenticatedRequest>().sessionFamily;
+    if (!family) throw new AuthError('session_invalid');
+    return family;
+  },
+);
 
 /** Global guard: authentication by default, then role checks from @Roles(). */
 @Injectable()
@@ -55,6 +66,7 @@ export class AuthGuard implements CanActivate {
     const user = claims ? await this.auth.findActiveUser(claims) : null;
     if (!user) throw new AuthError('session_invalid');
     request.user = user;
+    request.sessionFamily = claims?.sessionFamily;
 
     const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES, targets);
     if (roles && !roles.includes(user.role)) {

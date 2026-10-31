@@ -53,6 +53,55 @@ export async function verifyAccessToken(
   }
 }
 
+/** Proves the password step passed; only the MFA verify endpoint accepts it. */
+const CHALLENGE_AUDIENCE = 'lead-mfa-challenge';
+export const CHALLENGE_TTL_SECONDS = 5 * 60;
+
+/**
+ * Short fingerprint of the stored password hash. A challenge carries it, so changing or
+ * resetting the password voids every outstanding challenge.
+ */
+export function passwordVersion(passwordHash: string | null): string {
+  return createHash('sha256')
+    .update(passwordHash ?? '')
+    .digest('base64url')
+    .slice(0, 16);
+}
+
+export interface ChallengeClaims {
+  readonly userId: string;
+  readonly passwordVersion: string;
+}
+
+export function signChallengeToken(claims: ChallengeClaims, secret: string): Promise<string> {
+  return new SignJWT({ pv: claims.passwordVersion })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(claims.userId)
+    .setIssuer(ISSUER)
+    .setAudience(CHALLENGE_AUDIENCE)
+    .setIssuedAt()
+    .setExpirationTime(`${CHALLENGE_TTL_SECONDS}s`)
+    .sign(key(secret));
+}
+
+/** Returns the claims, or null for any invalid or expired challenge. */
+export async function verifyChallengeToken(
+  token: string,
+  secret: string,
+): Promise<ChallengeClaims | null> {
+  try {
+    const { payload } = await jwtVerify(token, key(secret), {
+      issuer: ISSUER,
+      audience: CHALLENGE_AUDIENCE,
+      algorithms: ['HS256'],
+    });
+    if (!payload.sub || typeof payload.pv !== 'string') return null;
+    return { userId: payload.sub, passwordVersion: payload.pv };
+  } catch {
+    return null;
+  }
+}
+
 export function newRefreshToken(): string {
   return randomBytes(32).toString('base64url');
 }

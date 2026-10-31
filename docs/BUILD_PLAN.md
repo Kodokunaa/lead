@@ -87,9 +87,16 @@ Slice 1 (API sign-in core) — done:
 - `db:seed` for generated demo accounts (refuses to run in production).
 - Reviewed by the security and TypeScript reviewers; all findings fixed. Open: a job to purge expired session rows (Phase 7), and keeping Postgres `log_statement` off while migrations set the role password.
 
+Slice 2 (MFA, registration, recovery; API for H02–H05) — done:
+
+- TOTP two-step verification: setup returns an otpauth URI; enabling needs the password and a working code, signs out other devices and emails a notice. Secrets are AES-256-GCM encrypted, bound to the user. Ten one-time recovery codes (hashed). Each code works once; a replayed code is refused without counting towards lockout, wrong codes do count.
+- Sign-in for MFA accounts returns a 5-minute challenge (its own JWT audience, void once the password changes); the factor is consumed in the same transaction that opens the session.
+- Registration takes name, email and role (student or teacher only). The password is chosen from an emailed confirmation link, so only the inbox owner can complete an account; it then waits for administrator approval.
+- Password recovery by emailed link: single use, 30 minutes, newest only, signs out every session.
+- Email-taking endpoints answer at once and work in the background, so timing cannot reveal which emails exist; at most one email per account per minute. Development email goes to `.eml` files (`MAIL_OUTBOX_DIR`); SMTP comes with deployment (Phase 7).
+
 Next slices:
 
-2. MFA (TOTP setup and verification, recovery codes), registration with approval, password recovery (H02–H05).
 3. Web: real sign-in screen, token refresh (one refresh at a time across tabs), sign-out synced across tabs, remove the preview role.
 4. Admin: users, account details, roles and permissions, approval queue (A02–A04, A16); profile, preferences, sessions list, search (H07–H09); access denied (X04).
 

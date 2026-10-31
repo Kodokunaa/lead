@@ -1,6 +1,12 @@
 import { HttpException, HttpStatus, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AuditAction, CurrentUser, SessionResponse, SignInRequest } from '@lead/schema';
-import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
+import type {
+  AuditAction,
+  CurrentUser,
+  MfaChallengeResponse,
+  SessionResponse,
+  SignInRequest,
+} from '@lead/schema';
+import { and, eq, gt, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { ENV } from '../config/config.module';
@@ -15,6 +21,8 @@ import {
   REFRESH_TOKEN_TTL_MS,
   SESSION_MAX_AGE_MS,
   signAccessToken,
+  passwordVersion,
+  signChallengeToken,
   type AccessClaims,
 } from './tokens';
 
@@ -34,12 +42,25 @@ export interface IssuedSession {
   readonly refreshToken: string;
 }
 
+/** Sign-in either finishes, or asks for the second factor when MFA is on. */
+export type SignInOutcome =
+  | { readonly kind: 'session'; readonly session: IssuedSession }
+  | { readonly kind: 'mfa'; readonly challenge: MfaChallengeResponse };
+
+export interface AuthEventDetails {
+  readonly targetType?: string;
+  readonly targetId?: string;
+  readonly after?: Record<string, unknown>;
+}
+
 export type AuthFailure =
   | 'invalid_credentials'
   | 'account_pending'
   | 'account_deactivated'
   | 'session_invalid'
-  | 'session_superseded';
+  | 'session_superseded'
+  | 'invalid_code'
+  | 'code_already_used';
 
 const FAILURE_STATUS: Readonly<Record<AuthFailure, HttpStatus>> = {
   invalid_credentials: HttpStatus.UNAUTHORIZED,
@@ -47,6 +68,8 @@ const FAILURE_STATUS: Readonly<Record<AuthFailure, HttpStatus>> = {
   account_deactivated: HttpStatus.FORBIDDEN,
   session_invalid: HttpStatus.UNAUTHORIZED,
   session_superseded: HttpStatus.CONFLICT,
+  invalid_code: HttpStatus.UNAUTHORIZED,
+  code_already_used: HttpStatus.UNAUTHORIZED,
 };
 
 const FAILURE_MESSAGE: Readonly<Record<AuthFailure, string>> = {
@@ -56,6 +79,8 @@ const FAILURE_MESSAGE: Readonly<Record<AuthFailure, string>> = {
   account_deactivated: 'This account has been deactivated. Contact the registrar.',
   session_invalid: 'Your session has ended. Sign in again.',
   session_superseded: 'This session was just refreshed elsewhere. Retry with the new cookie.',
+  invalid_code: 'That code did not work. Check your authenticator app and try again.',
+  code_already_used: 'That code was already used. Wait for the next code, then try again.',
 };
 
 export class AuthError extends HttpException {
@@ -80,7 +105,7 @@ export class AuthService implements OnModuleInit {
     await warmUpPasswordHashing();
   }
 
-  async signIn(request: SignInRequest, client: ClientInfo): Promise<IssuedSession> {
+  async signIn(request: SignInRequest, client: ClientInfo): Promise<SignInOutcome> {
     const [user] = await this.db.select().from(users).where(eq(users.email, request.email));
     // Always verify, even for a missing or locked account, so timing reveals nothing.
     const passwordOk = await verifyPassword(user?.passwordHash ?? null, request.password);
@@ -88,31 +113,57 @@ export class AuthService implements OnModuleInit {
     if (!user) {
       // A hash, not the address: it links repeated attempts without storing what was typed,
       // which is sometimes a password entered in the wrong field.
-      await this.log('auth.sign_in_failed', 'failure', null, client, {
+      await this.recordEvent('auth.sign_in_failed', 'failure', null, client, {
         targetType: 'email_hash',
         targetId: emailFingerprint(request.email),
       });
       throw new AuthError('invalid_credentials');
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await this.log('auth.sign_in_failed', 'denied', user, client, { after: { locked: true } });
-      throw new AuthError('invalid_credentials');
-    }
+    await this.assertNotLocked(user, client);
 
     if (!passwordOk) {
-      await this.recordFailedSignIn(user, client);
+      await this.recordFailedAttempt(user, client);
       throw new AuthError('invalid_credentials');
     }
 
     if (user.status !== 'active') {
-      await this.log('auth.sign_in_failed', 'denied', user, client, {
+      await this.recordEvent('auth.sign_in_failed', 'denied', user, client, {
         after: { status: user.status },
       });
       throw new AuthError(user.status === 'pending' ? 'account_pending' : 'account_deactivated');
     }
 
-    const issued = await this.db.transaction(async (tx) => {
+    if (user.mfaEnabledAt) {
+      const challengeToken = await signChallengeToken(
+        { userId: user.id, passwordVersion: passwordVersion(user.passwordHash) },
+        this.env.JWT_SECRET,
+      );
+      return { kind: 'mfa', challenge: { mfaRequired: true, challengeToken } };
+    }
+    return { kind: 'session', session: await this.completeSignIn(user, client) };
+  }
+
+  /** Refuses a locked account with the same error as a wrong password. */
+  async assertNotLocked(user: UserRow, client: ClientInfo): Promise<void> {
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      await this.recordEvent('auth.sign_in_failed', 'denied', user, client, {
+        after: { locked: true },
+      });
+      throw new AuthError('invalid_credentials');
+    }
+  }
+
+  /**
+   * Final step of a sign-in once every factor has passed: clears failures, opens a session.
+   * Pass the caller's transaction so consuming the second factor commits only with the session.
+   */
+  async completeSignIn(
+    user: UserRow,
+    client: ClientInfo,
+    outer: DbExecutor = this.db,
+  ): Promise<IssuedSession> {
+    const issued = await outer.transaction(async (tx) => {
       // Re-check the lock atomically: a parallel wrong guess may have locked the account
       // while this request was verifying its password.
       const [unlocked] = await tx
@@ -128,7 +179,7 @@ export class AuthService implements OnModuleInit {
       if (!unlocked) return null;
 
       const session = await this.issueSession(tx, user, randomUUID(), new Date(), client);
-      await this.log('auth.signed_in', 'success', user, client, {}, tx);
+      await this.recordEvent('auth.signed_in', 'success', user, client, {}, tx);
       return session;
     });
 
@@ -163,7 +214,7 @@ export class AuthService implements OnModuleInit {
         }
         // Log only the first replay; later ones hit an already-dead family.
         if ((await this.revokeFamily(tx, session.familyId)) > 0) {
-          await this.log(
+          await this.recordEvent(
             'auth.refresh_reused',
             'denied',
             user,
@@ -202,7 +253,7 @@ export class AuthService implements OnModuleInit {
       if (!row || row.session.revokedAt) return;
 
       await this.revokeFamily(tx, row.session.familyId);
-      await this.log('auth.signed_out', 'success', row.user, client, {}, tx);
+      await this.recordEvent('auth.signed_out', 'success', row.user, client, {}, tx);
     });
   }
 
@@ -256,7 +307,8 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  private async recordFailedSignIn(user: UserRow, client: ClientInfo): Promise<void> {
+  /** Counts a wrong password or second factor towards the lockout. */
+  async recordFailedAttempt(user: UserRow, client: ClientInfo): Promise<void> {
     // One atomic statement, so parallel guesses can neither undercount nor slip past a lock.
     // now() is fixed per transaction, so locked_until equals lockUntil only if this statement
     // set it.
@@ -277,10 +329,10 @@ export class AuthService implements OnModuleInit {
       });
 
     if (updated?.justLocked) {
-      await this.log('auth.locked_out', 'denied', user, client, {});
+      await this.recordEvent('auth.locked_out', 'denied', user, client, {});
       return;
     }
-    await this.log('auth.sign_in_failed', 'failure', user, client, {});
+    await this.recordEvent('auth.sign_in_failed', 'failure', user, client, {});
   }
 
   /** Revokes every live token in the family and returns how many were still live. */
@@ -293,16 +345,35 @@ export class AuthService implements OnModuleInit {
     return revoked.length;
   }
 
-  private async log(
+  /** Ends every session except the current one, e.g. after turning MFA on or off. */
+  async revokeOtherSessions(tx: DbExecutor, userId: string, keepFamily: string): Promise<void> {
+    await tx
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(sessions.userId, userId),
+          isNull(sessions.revokedAt),
+          ne(sessions.familyId, keepFamily),
+        ),
+      );
+  }
+
+  /** Ends every session the user has, e.g. after a password reset. */
+  async revokeAllSessions(tx: DbExecutor, userId: string): Promise<void> {
+    await tx
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+  }
+
+  /** Audit helper for account events; the user is both actor and target. */
+  async recordEvent(
     action: AuditAction,
     outcome: 'success' | 'denied' | 'failure',
     user: UserRow | null,
     client: ClientInfo,
-    extra: {
-      targetType?: string;
-      targetId?: string;
-      after?: Record<string, unknown>;
-    },
+    extra: AuthEventDetails,
     tx?: DbExecutor,
   ): Promise<void> {
     await this.audit.record(
@@ -325,6 +396,6 @@ export class AuthService implements OnModuleInit {
 }
 
 /** Lets audit rows link attempts on the same unknown email without storing the address. */
-function emailFingerprint(email: string): string {
+export function emailFingerprint(email: string): string {
   return createHash('sha256').update(email).digest('hex').slice(0, 32);
 }

@@ -16,6 +16,12 @@ const envSchema = z.object({
    * clients can spoof X-Forwarded-For.
    */
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  /** 32 random bytes, base64url. Encrypts stored MFA secrets; losing it disables everyone's MFA. */
+  MFA_ENCRYPTION_KEY: z.string().refine((value) => Buffer.from(value, 'base64url').length === 32, {
+    message: 'must be 32 bytes encoded as base64url',
+  }),
+  /** Where the development mailer writes emails (one .eml file each) instead of sending them. */
+  MAIL_OUTBOX_DIR: z.string().min(1).default('storage/outbox'),
   /** Signs access tokens. 32+ random characters; rotating it signs everyone out within minutes. */
   JWT_SECRET: z.string().min(32),
 });
