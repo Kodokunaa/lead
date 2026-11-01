@@ -124,6 +124,16 @@ Slice 4 (account administration and self-service: A02–A04, A16, H07–H08, X04
 
 **Phase 1 — done** apart from H09 search, moved to Phase 2.
 
+**Phase 2 — academic structure and content (in progress).**
+
+Slice 2a (course catalog, A05) — done:
+
+- Programs (CCC's seven seeded by migration: BPA, BSED Math, BSED Science, BSHM, BSIS, BSNED, BSTM), academic terms (school year + semester, exactly one current: partial unique index plus an advisory lock so two admins switching at once cannot collide), and courses (code normalized to capitals, 1–6 units, a program or general education).
+- Admin API under `/api/admin/{programs,terms,courses}`: add/edit, deactivate programs, make a term current, archive courses (reason required) and restore. Edits change only the fields sent and record nothing when nothing differs; duplicate codes answer 409; a course cannot be placed under a program that is no longer offered (row lock against a concurrent deactivation).
+- A05 Course Management screen: Courses, Programs and Terms tabs with shadcn dialogs; Add/Edit wait for the program list; archive/restore announce the result and take focus; an emptied last page steps back.
+
+Next: slice 2b — sections (course + term + name, capacity), teaching assignments and enrollment (A07 Section Management), and the class lists for teachers (T02) and students (S02).
+
 ## Seed data
 
 All development and demos use generated learners (`Learner 01…`) and placeholder courses until CCC gives written approval for real records. Confirm CCC's actual programs, department names and grading scheme during consultation and replace the IT 301–303 placeholders.

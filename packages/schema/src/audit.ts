@@ -21,6 +21,7 @@ export const REASON_REQUIRED_ACTIONS = [
   'account.rejected',
   'account.reactivated',
   'account.mfa_reset',
+  'course.archived',
 ] as const;
 
 /**
@@ -48,6 +49,13 @@ export const KNOWN_ACTIONS = [
   'auth.password_changed',
   'account.approved',
   'account.profile_updated',
+  'program.created',
+  'program.updated',
+  'term.created',
+  'term.made_current',
+  'course.created',
+  'course.updated',
+  'course.restored',
   'intervention.assigned',
   'backup.completed',
 ] as const;

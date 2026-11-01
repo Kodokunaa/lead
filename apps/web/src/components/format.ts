@@ -66,3 +66,8 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
 export function describeAction(action: string): string {
   return ACTION_LABELS[action] ?? action;
 }
+
+/** "1 course", "2 courses". */
+export function countOf(total: number, noun: string): string {
+  return `${total} ${noun}${total === 1 ? '' : 's'}`;
+}

@@ -16,6 +16,7 @@ import { useSession } from './auth/session';
 import { ForgotPasswordPage, RegisterPage, TokenPasswordPage } from './pages/auth/AccountPages';
 import { SignInPage } from './pages/auth/SignInPage';
 import { AccessDeniedPage } from './pages/AccessDeniedPage';
+import { CatalogPage } from './pages/admin/catalog/CatalogPage';
 import { RolesPage } from './pages/admin/RolesPage';
 import { UserDetailsPage } from './pages/admin/UserDetailsPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -90,6 +91,7 @@ function AccessDeniedRoute() {
 const BUILT_PAGES: Readonly<Partial<Record<string, () => ReactElement>>> = {
   '/admin/users': UsersPage,
   '/admin/roles': RolesPage,
+  '/admin/courses': CatalogPage,
 };
 
 /** Pages opened from emailed links read their token from the URL fragment. */

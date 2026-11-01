@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/table';
 import { useApiData } from '../../auth/use-api';
 import { FormMessage } from '../../components/form';
-import { formatDateTime } from '../../components/format';
+import { countOf, formatDateTime } from '../../components/format';
 import { StatusBadge } from './StatusBadge';
 
 type StatusFilter = AccountStatus | 'all';
@@ -186,7 +186,7 @@ function UserTable({ response, onPage, emptyText }: UserTableProps) {
       </Card>
       <nav aria-label="Pages" className="mt-3 flex items-center justify-between text-sm">
         <span aria-live="polite">
-          Page {response.page} of {lastPage} · {response.total} accounts
+          Page {response.page} of {lastPage} · {countOf(response.total, 'account')}
         </span>
         <span className="flex gap-2">
           <Button

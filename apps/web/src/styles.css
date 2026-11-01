@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Enter/exit animations used by shadcn/ui (dialog zoom and fade). */
+@import 'tw-animate-css';
 @import '@lead/ui-tokens/tokens.css';
 
 /* LEAD is white by design. shadcn/ui ships dark: styles, which Tailwind would apply from the

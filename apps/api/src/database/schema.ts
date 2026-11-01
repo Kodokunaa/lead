@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -11,7 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { ACCOUNT_STATUSES, AUDIT_OUTCOMES, ROLES, type AuditAction } from '@lead/schema';
+import { ACCOUNT_STATUSES, AUDIT_OUTCOMES, ROLES, SEMESTERS, type AuditAction } from '@lead/schema';
 
 export const roleEnum = pgEnum('role', ROLES);
 export const auditOutcomeEnum = pgEnum('audit_outcome', AUDIT_OUTCOMES);
@@ -123,6 +125,73 @@ export const accountTokens = pgTable(
     index('account_tokens_user_purpose_idx').on(table.userId, table.purpose),
   ],
 );
+
+export const semesterEnum = pgEnum('semester', SEMESTERS);
+
+/** Degree programs offered by CCC (seeded by migration 0007). */
+export const programs = pgTable(
+  'programs',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    active: boolean('active').notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex('programs_code_idx').on(sql`lower(${table.code})`)],
+);
+
+/** A semester of a school year. At most one term is current (partial unique index). */
+export const academicTerms = pgTable(
+  'academic_terms',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    schoolYear: text('school_year').notNull(),
+    semester: semesterEnum('semester').notNull(),
+    startsOn: date('starts_on').notNull(),
+    endsOn: date('ends_on').notNull(),
+    current: boolean('current').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('academic_terms_year_semester_idx').on(table.schoolYear, table.semester),
+    uniqueIndex('academic_terms_current_idx')
+      .on(table.current)
+      .where(sql`${table.current}`),
+  ],
+);
+
+/** The course catalog. Archived courses keep their history but get no new sections. */
+export const courses = pgTable(
+  'courses',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    /** Uppercase, single spaces (see courseCodeSchema). */
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    units: integer('units').notNull(),
+    /** Null for general education courses shared by every program. */
+    programId: uuid('program_id').references(() => programs.id, { onDelete: 'restrict' }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('courses_code_idx').on(table.code),
+    index('courses_program_idx').on(table.programId),
+  ],
+);
+
+export type ProgramRow = typeof programs.$inferSelect;
+export type TermRow = typeof academicTerms.$inferSelect;
+export type CourseRow = typeof courses.$inferSelect;
 
 export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeAction, describeDevice, formatDateTime } from './format';
+import { countOf, describeAction, describeDevice, formatDateTime } from './format';
 
 describe('format', () => {
   it('shows times in Philippine time', () => {
@@ -23,5 +23,13 @@ describe('format', () => {
   it('reads audit actions as sentences, and leaves unknown ones as they are', () => {
     expect(describeAction('account.role_changed')).toBe('Role changed');
     expect(describeAction('something.new')).toBe('something.new');
+  });
+});
+
+describe('countOf', () => {
+  it('uses the singular for exactly one', () => {
+    expect(countOf(1, 'course')).toBe('1 course');
+    expect(countOf(0, 'course')).toBe('0 courses');
+    expect(countOf(26, 'account')).toBe('26 accounts');
   });
 });

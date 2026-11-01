@@ -69,20 +69,24 @@ reference/          client documents and wireframes (gitignored, never commit)
 | `sessions`       | one row per refresh token: family_id, family_started_at, token_hash, expires_at, revoked_at, rotated_at, ip, user agent                                                                                                                                                                                        |
 | `recovery_codes` | MFA one-time codes, SHA-256 hashes, used_at                                                                                                                                                                                                                                                                    |
 | `account_tokens` | emailed single-use links, purpose `password_reset` (30 min) or `email_verification` (24 h), hashed                                                                                                                                                                                                             |
+| `programs`       | CCC degree programs: code (unique, case-insensitive), name, active; seven seeded by migration 0008                                                                                                                                                                                                             |
+| `academic_terms` | school_year (`2026-2027`), semester (`first`/`second`/`summer`), starts_on/ends_on, current (at most one: partial unique index + advisory lock 742_002)                                                                                                                                                        |
+| `courses`        | code (uppercase, unique), title, description, units 1–6, program_id (null = general education), archived_at                                                                                                                                                                                                    |
 
-Migrations `apps/api/drizzle/0000`–`0006` (never edit a pushed migration; add a new one with
+Migrations `apps/api/drizzle/0000`–`0008` (never edit a pushed migration; add a new one with
 `pnpm --filter @lead/api db:generate`, custom SQL via `drizzle-kit generate --custom`).
 
 ## 4. API (all under `/api`)
 
-| Area                      | Endpoints                                                                                                                                                                                                                                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Health                    | `GET /health` (public)                                                                                                                                                                                                                                                                                                         |
-| Sign-in                   | `POST /auth/sign-in` (session, or `{mfaRequired, challengeToken}`), `POST /auth/refresh`, `POST /auth/sign-out`, `GET /auth/me`                                                                                                                                                                                                |
-| MFA                       | `POST /auth/mfa/setup`, `/enable` (password + code), `/disable` (password + code), `/verify` (public: challenge + code or recovery code)                                                                                                                                                                                       |
-| Accounts (public)         | `POST /auth/register` (name, email, role student/teacher; no password), `/email/verify` (token + password), `/password/forgot`, `/password/reset` — email-taking ones answer 202 at once and work in the background                                                                                                            |
-| Self                      | `GET /me/sessions`, `POST /me/sessions/:id/revoke`, `POST /me/sessions/revoke-others`, `PATCH /me/profile`, `POST /me/password`                                                                                                                                                                                                |
-| Admin (`@Roles('admin')`) | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes |
+| Area                        | Endpoints                                                                                                                                                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Health                      | `GET /health` (public)                                                                                                                                                                                                                                                                                                         |
+| Sign-in                     | `POST /auth/sign-in` (session, or `{mfaRequired, challengeToken}`), `POST /auth/refresh`, `POST /auth/sign-out`, `GET /auth/me`                                                                                                                                                                                                |
+| MFA                         | `POST /auth/mfa/setup`, `/enable` (password + code), `/disable` (password + code), `/verify` (public: challenge + code or recovery code)                                                                                                                                                                                       |
+| Accounts (public)           | `POST /auth/register` (name, email, role student/teacher; no password), `/email/verify` (token + password), `/password/forgot`, `/password/reset` — email-taking ones answer 202 at once and work in the background                                                                                                            |
+| Self                        | `GET /me/sessions`, `POST /me/sessions/:id/revoke`, `POST /me/sessions/revoke-others`, `PATCH /me/profile`, `POST /me/password`                                                                                                                                                                                                |
+| Catalog (`@Roles('admin')`) | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`          |
+| Admin (`@Roles('admin')`)   | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes |
 
 Request/response shapes live in `packages/schema/src/{auth,admin}.ts`. Development email is written as `.eml`
 files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no SMTP sender yet.
@@ -96,13 +100,15 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   `/access-denied` (X04), shared `/notifications` `/profile` `/security` `/search`.
 - Built screens: H01–H05 (sign-in, MFA step, register, confirm email, forgot/reset), H07 profile, H08 security
   (MFA setup with QR, recovery codes, devices list), A02/A16 user management, A03 user details, A04 roles (read-only),
-  X04 access denied.
+  A05 course management (Courses / Programs / Terms tabs in `pages/admin/catalog/`; `FormDialog` wraps the shadcn
+  Dialog, `afterSave` moves focus to an announcement when the row disappears), X04 access denied.
 - **Design** (decided by the user — keep it): wireframes decide each screen's elements and layout; look = white
   background only (no dark mode), accent `#f97316`, Poppins (self-hosted `@fontsource/poppins`), CCC seal
   (`public/ccc-logo.png`, favicon), rounded cards with soft shadows, transitions and big entrance animations
   (`animate-rise`, `animate-pop`, `animate-fade`, `animate-slide-in`, `animate-glow`, `stagger`, `card-interactive`,
   `link` in `styles.css`; all disabled under `prefers-reduced-motion`). Components are **shadcn/ui** in
-  `src/components/ui` (button, card, input, label, alert, badge, table, separator), themed from `packages/ui-tokens`.
+  `src/components/ui` (button, card, input, label, alert, badge, table, separator, tabs, dialog, textarea), themed
+  from `packages/ui-tokens`; `tw-animate-css` supplies their enter/exit animations.
   Add more with `pnpm dlx shadcn@4.22.1 add <name>` from `apps/web` (it imports `cn` from shadcn's `cn` package).
   Accessibility: text on orange is `#431407`, orange text is `#c2410c` (`text-brand-strong`) — white on `#f97316`
   fails WCAG AA; `packages/ui-tokens` tests enforce contrast.
@@ -110,7 +116,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 ## 6. Status
 
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
-- `main` = `15ed0c7` (CCC look with shadcn/ui), CI green. Latest test counts: API 83, web 54, schema 18, tokens 5.
+- **Phase 2** in progress: slice 2a (course catalog: programs, terms, courses, A05 screen) done; slice 2b next.
+- Test counts after slice 2a: API 97, web 67, schema 27, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -153,10 +160,12 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 ## 9. Next steps (exact)
 
 1. **Phase 2 — academic structure and content** (screens A05–A08, A10–A11, T02–T07, S02–S03, S05–S06; see
-   BUILD_PLAN): ask the user for wireframe images of these screens first. Then, slice by slice:
-   a. Schema + migration: programs (seed CCC's seven), academic terms, courses, sections, enrollments, teaching
-   assignments; admin API + screens A05 course management, A07 section management (shadcn Table/Card, reasons in
-   audit for consequential changes; add new actions to `KNOWN_ACTIONS`).
+   BUILD_PLAN). Wireframe images for these screens have not been provided yet — ask the user. Slice by slice:
+   a. Done: catalog (programs with CCC's seven seeded, academic terms, courses) and A05 Course Management.
+   a2. **Next (slice 2b):** sections (non-archived course + term + name like "BSIS 3-A", capacity), teaching
+   assignments and enrollments; admin API + A07 Section Management; teacher T02 My Classes and student S02 My
+   Courses lists (shadcn Table/Card; reasons in audit for consequential changes; add new actions to `KNOWN_ACTIONS`;
+   force overlap in tests for capacity races).
    b. Calendar (A06/A08 per plan), modules, lessons, learning objectives; teacher screens T02–T07.
    c. Resource upload with approval workflow (local disk in dev; MinIO later) and student views S02–S03, S05–S06.
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects

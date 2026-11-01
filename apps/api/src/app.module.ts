@@ -5,6 +5,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
@@ -26,6 +27,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     AuthModule,
     AdminModule,
     MeModule,
+    CatalogModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

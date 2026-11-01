@@ -50,6 +50,20 @@
       "when": 1793495840689,
       "tag": "0006_account_status_rejected",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793504080103,
+      "tag": "0007_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793504081138,
+      "tag": "0008_seed_ccc_programs",
+      "breakpoints": true
     }
   ]
 }
