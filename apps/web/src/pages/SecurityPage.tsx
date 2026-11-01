@@ -1,6 +1,6 @@
 import type { CurrentUser, MfaEnableResponse, MfaSetupResponse } from '@lead/schema';
-import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { useAuth } from '../auth/session';
 import { SessionsSection } from './SessionsSection';
 import {
@@ -23,7 +23,7 @@ export function SecurityPage({ user }: SecurityPageProps) {
       <h1 id="page-title" className="text-2xl font-bold">
         Account preferences and security
       </h1>
-      <p className="mt-1 text-sm text-muted">Signed in as {user.email}</p>
+      <p className="mt-1 text-sm text-muted-foreground">Signed in as {user.email}</p>
       <TwoStepSection enabled={user.mfaEnabled} />
       <SessionsSection />
     </section>
@@ -36,28 +36,27 @@ function TwoStepSection({ enabled }: { enabled: boolean }) {
   const isOn = enabled || recoveryCodes !== null;
 
   return (
-    <section
-      aria-labelledby="two-step-title"
-      className="mt-6 rounded-lg border border-border bg-surface p-6"
-    >
-      <h2 id="two-step-title" className="font-semibold">
-        Two-step verification
-      </h2>
-      <p className="mt-1 text-sm text-muted">
-        {isOn
-          ? 'On. Signing in needs your password and a code from your authenticator app.'
-          : 'Off. Add a code from an authenticator app to protect your account if your password leaks.'}
-      </p>
-      <div className="mt-4">
-        {recoveryCodes ? (
-          <RecoveryCodes codes={recoveryCodes} onDone={() => setRecoveryCodes(null)} />
-        ) : enabled ? (
-          <TurnOffForm />
-        ) : (
-          <SetupFlow onEnabled={setRecoveryCodes} />
-        )}
-      </div>
-    </section>
+    <Card className="mt-6 px-6">
+      <section aria-labelledby="two-step-title">
+        <h2 id="two-step-title" className="font-semibold">
+          Two-step verification
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isOn
+            ? 'On. Signing in needs your password and a code from your authenticator app.'
+            : 'Off. Add a code from an authenticator app to protect your account if your password leaks.'}
+        </p>
+        <div className="mt-4">
+          {recoveryCodes ? (
+            <RecoveryCodes codes={recoveryCodes} onDone={() => setRecoveryCodes(null)} />
+          ) : enabled ? (
+            <TurnOffForm />
+          ) : (
+            <SetupFlow onEnabled={setRecoveryCodes} />
+          )}
+        </div>
+      </section>
+    </Card>
   );
 }
 
@@ -132,7 +131,9 @@ function QrCode({ value }: { value: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   useEffect(() => {
     let current = true;
-    QRCode.toDataURL(value, { margin: 1, width: 192 })
+    // Loaded only here, so the QR library is not part of every page's download.
+    import('qrcode')
+      .then(({ default: QRCode }) => QRCode.toDataURL(value, { margin: 1, width: 192 }))
       .then((url) => {
         if (current) setDataUrl(url);
       })
@@ -151,7 +152,7 @@ function QrCode({ value }: { value: string }) {
       width={192}
       height={192}
       alt="QR code for your authenticator app. If you cannot scan it, type the key shown below."
-      className="rounded-md border border-border bg-white p-2"
+      className="animate-pop rounded-2xl border border-border bg-white p-2 shadow-[var(--lead-shadow-card)]"
     />
   );
 }
@@ -174,7 +175,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
       </p>
       <ul aria-label="Recovery codes" className="grid grid-cols-2 gap-2 font-mono text-sm">
         {codes.map((code) => (
-          <li key={code} className="rounded-md bg-surface-muted px-3 py-1.5 text-center">
+          <li key={code} className="rounded-xl bg-brand-soft px-3 py-1.5 text-center">
             {code}
           </li>
         ))}

@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { AuthStore } from './auth/auth-store';
 import { AuthProvider } from './auth/session';
+import '@fontsource/poppins/400.css';
+import '@fontsource/poppins/500.css';
+import '@fontsource/poppins/600.css';
+import '@fontsource/poppins/700.css';
 import './styles.css';
 
 const container = document.getElementById('root');

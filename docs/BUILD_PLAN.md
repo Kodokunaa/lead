@@ -19,6 +19,10 @@ Client: **City College of Calapan**. Scope: full LMS, adaptive pathways, two RAG
 
 Local dev runs Postgres, Redis and MinIO in Docker. Ollama runs natively for GPU use (RTX 3050 6 GB: a 7–8B model at Q4 for chat, `nomic-embed-text` for embeddings).
 
+## Design
+
+The wireframes decide each screen's elements and layout; the look follows CCC: white background, orange accent `#f97316` (from the college seal), Poppins (self-hosted), the CCC seal as logo, rounded cards with soft shadows, and lively transitions and entrance animations that switch off when the device asks for reduced motion. Components are [shadcn/ui](https://ui.shadcn.com) (source in `apps/web/src/components/ui`), themed from `packages/ui-tokens` so the mobile app can share the same values. Text on orange is dark brown and orange text uses `#c2410c`, because white on `#f97316` fails WCAG AA contrast; the token tests check this.
+
 ## Repository layout
 
 ```

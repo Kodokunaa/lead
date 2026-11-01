@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @import '@lead/ui-tokens/tokens.css';
 
+/* LEAD is white by design. shadcn/ui ships dark: styles, which Tailwind would apply from the
+   device's dark-mode setting; tie them to a .dark class instead, which nothing sets. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Expose the shared design tokens to Tailwind utilities (bg-surface, text-muted, ...). */
 @theme inline {
   --color-background: var(--lead-background);
@@ -8,13 +12,49 @@
   --color-surface-muted: var(--lead-surface-muted);
   --color-border: var(--lead-border);
   --color-text: var(--lead-text);
-  --color-muted: var(--lead-text-muted);
   --color-brand: var(--lead-brand);
   --color-brand-text: var(--lead-brand-text);
+  --color-brand-strong: var(--lead-brand-strong);
+  --color-brand-soft: var(--lead-brand-soft);
   --color-success: var(--lead-success);
   --color-warning: var(--lead-warning);
   --color-danger: var(--lead-danger);
   --color-focus: var(--lead-focus);
+  --font-sans: var(--lead-font-sans);
+
+  /* shadcn/ui names, mapped to the same CCC tokens. */
+  --color-foreground: var(--lead-text);
+  --color-card: var(--lead-surface);
+  --color-card-foreground: var(--lead-text);
+  --color-popover: var(--lead-surface);
+  --color-popover-foreground: var(--lead-text);
+  --color-primary: var(--lead-brand);
+  --color-primary-foreground: var(--lead-brand-text);
+  --color-secondary: var(--lead-surface-muted);
+  --color-secondary-foreground: var(--lead-text);
+  --color-muted: var(--lead-surface-muted);
+  --color-muted-foreground: var(--lead-text-muted);
+  --color-accent: var(--lead-brand-soft);
+  --color-accent-foreground: var(--lead-brand-strong);
+  --color-destructive: var(--lead-danger);
+  --color-input: var(--lead-border);
+  --color-ring: var(--lead-focus);
+  --radius: var(--lead-radius-md);
+}
+
+/* shadcn/ui expects every border to use the theme border color unless a class says otherwise. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--lead-border);
+  }
+
+  /* Default focus ring; shadcn components replace it with their own ring (outline-none). */
+  :focus-visible {
+    outline: 2px solid var(--lead-focus);
+    outline-offset: 2px;
+  }
 }
 
 html,
@@ -26,18 +66,171 @@ body,
 body {
   background: var(--lead-background);
   color: var(--lead-text);
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+  font-family: var(--lead-font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-  outline: 2px solid var(--lead-focus);
-  outline-offset: 2px;
+a {
+  transition: color var(--lead-duration-fast) ease;
+}
+
+/* ---------- Additions to the shadcn/ui components (src/components/ui) ---------- */
+@layer components {
+  /* A card that can be acted on lifts slightly on hover. */
+  .card-interactive {
+    transition:
+      box-shadow var(--lead-duration-base) var(--lead-ease-emphasized),
+      transform var(--lead-duration-base) var(--lead-ease-emphasized);
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--lead-shadow-raised);
+  }
+
+  /* Inline text links: deeper orange (contrast), underline slides in on hover. */
+  .link {
+    color: var(--lead-brand-strong);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+    transition: text-decoration-color var(--lead-duration-base) ease;
+  }
+
+  .link:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* ---------- Motion ---------- */
+@keyframes lead-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lead-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-25deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08) rotate(4deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes lead-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lead-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes lead-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0.12);
+  }
+}
+
+@keyframes lead-float {
+  0%,
+  100% {
+    transform: translate(0, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-6%, -44%) scale(1.08);
+  }
+}
+
+/* Decorative orange glow behind the sign-in card; drifts slowly. */
+.auth-glow {
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.28), rgba(249, 115, 22, 0) 65%);
+  filter: blur(8px);
+  animation: lead-float 12s ease-in-out infinite;
+}
+
+@layer utilities {
+  /* Big entrance for cards and page content. */
+  .animate-rise {
+    animation: lead-rise var(--lead-duration-slow) var(--lead-ease-emphasized) both;
+  }
+
+  /* The college seal arriving with a spin and a bounce. */
+  .animate-pop {
+    animation: lead-pop 900ms var(--lead-ease-spring) both;
+  }
+
+  .animate-fade {
+    animation: lead-fade var(--lead-duration-base) ease both;
+  }
+
+  .animate-slide-in {
+    animation: lead-slide-in 350ms var(--lead-ease-emphasized) both;
+  }
+
+  /* Gentle pulse around something that needs attention (e.g. the approval count). */
+  .animate-glow {
+    animation: lead-glow 2.4s ease-in-out infinite;
+  }
+
+  /* Children rise one after another. */
+  .stagger > * {
+    animation: lead-rise var(--lead-duration-slow) var(--lead-ease-emphasized) both;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 300ms;
+  }
+  .stagger > *:nth-child(n + 7) {
+    animation-delay: 360ms;
+  }
+}
+
+/* Respect the device setting: no movement for people who get motion sick. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

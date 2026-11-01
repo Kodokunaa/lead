@@ -15,7 +15,7 @@ interface MessageResponse {
 function BackToSignIn() {
   return (
     <p className="mt-6 text-sm">
-      <Link to="/" className="underline">
+      <Link to="/" className="link">
         Back to sign in
       </Link>
     </p>

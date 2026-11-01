@@ -1,5 +1,5 @@
 import { ROLE_LABELS, SHARED_ROUTES, type Role } from '@lead/schema';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { Bell, Menu, Search } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { errorMessage, FormMessage } from '../components/form';
@@ -18,6 +18,7 @@ export function AppShell({ role, children }: AppShellProps) {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const auth = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const accountLabel = `${ROLE_LABELS[role]} account`;
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
@@ -58,7 +59,7 @@ export function AppShell({ role, children }: AppShellProps) {
           <header className="flex h-16 items-center gap-3 border-b border-border bg-surface px-4">
             <button
               type="button"
-              className="rounded-md p-2 hover:bg-surface-muted md:hidden"
+              className="rounded-xl p-2 transition-colors hover:bg-brand-soft md:hidden"
               aria-label="Open menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(true)}
@@ -68,13 +69,13 @@ export function AppShell({ role, children }: AppShellProps) {
 
             <form
               role="search"
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-surface-muted px-3 py-2 md:max-w-xl"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface-muted px-4 py-2 transition-all duration-300 focus-within:border-brand focus-within:bg-surface focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.15)] md:max-w-xl"
               onSubmit={(event) => {
                 event.preventDefault();
                 void navigate({ to: SHARED_ROUTES.search.path });
               }}
             >
-              <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
+              <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
               <label htmlFor="global-search" className="sr-only">
                 Search permitted courses, resources or records
               </label>
@@ -82,14 +83,14 @@ export function AppShell({ role, children }: AppShellProps) {
                 id="global-search"
                 type="search"
                 placeholder="Search courses, resources or records…"
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </form>
 
             <Link
               to={SHARED_ROUTES.notifications.path}
               aria-label="Notifications"
-              className="ml-auto rounded-md p-2 hover:bg-surface-muted"
+              className="ml-auto rounded-xl p-2 transition-colors hover:bg-brand-soft hover:text-brand-strong"
             >
               <Bell aria-hidden="true" className="size-5" />
             </Link>
@@ -97,11 +98,11 @@ export function AppShell({ role, children }: AppShellProps) {
             <Link
               to={SHARED_ROUTES.profile.path}
               aria-label={accountLabel}
-              className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface-muted sm:px-2"
+              className="flex items-center gap-2 rounded-xl px-1 py-1 text-sm transition-colors hover:bg-brand-soft sm:px-2"
             >
               <span
                 aria-hidden="true"
-                className="grid size-8 place-items-center rounded-full bg-surface-muted text-xs font-semibold"
+                className="grid size-9 place-items-center rounded-full bg-brand text-sm font-bold text-brand-text shadow-[0_4px_12px_rgba(249,115,22,0.35)]"
               >
                 {ROLE_LABELS[role].charAt(0)}
               </span>
@@ -121,7 +122,10 @@ export function AppShell({ role, children }: AppShellProps) {
                 <FormMessage tone="error">{signOutError}</FormMessage>
               </div>
             )}
-            {children}
+            {/* Re-keyed per page, so every navigation plays the entrance animation. */}
+            <div key={pathname} className="animate-rise">
+              {children}
+            </div>
           </main>
         </div>
       </div>

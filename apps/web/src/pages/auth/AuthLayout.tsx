@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Logo } from '../../components/Logo';
 
 interface AuthLayoutProps {
   readonly title: string;
@@ -6,42 +8,50 @@ interface AuthLayoutProps {
   readonly children: ReactNode;
 }
 
-/** Shared frame for the signed-out screens (H01–H05): college intro beside the form card. */
+/**
+ * Shared frame for the signed-out screens (H01–H05): the college intro beside a large card
+ * with the seal on top. On phones the card comes first, so the form is on screen at once. Both rise in on arrival; a soft orange glow drifts behind the card.
+ */
 export function AuthLayout({ title, description, children }: AuthLayoutProps) {
   return (
-    <main className="grid min-h-full place-items-center px-4 py-10">
-      <div className="grid w-full max-w-4xl gap-10 md:grid-cols-2 md:items-center">
-        <div>
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="grid size-12 shrink-0 place-items-center rounded-full border border-border bg-surface text-xs font-bold"
-            >
-              CCC
-            </span>
-            <div className="leading-tight">
-              <p className="font-semibold">Project LEAD</p>
-              <p className="text-sm text-muted">City College of Calapan</p>
-            </div>
-          </div>
-          <p className="mt-8 text-2xl leading-snug font-semibold">
-            Learning Enhancement through Artificial Intelligence and Digital Analytics
+    <main className="relative grid min-h-full place-items-center overflow-hidden px-4 py-10">
+      <div
+        aria-hidden="true"
+        className="auth-glow pointer-events-none absolute top-1/2 right-[-10%] size-[36rem] -translate-y-1/2 rounded-full"
+      />
+      <div className="relative grid w-full max-w-5xl gap-10 md:grid-cols-2 md:items-center">
+        <div className="animate-rise order-2 text-center md:order-1 md:text-left">
+          <p className="text-sm font-semibold tracking-widest text-brand-strong uppercase">
+            City College of Calapan
           </p>
-          <p className="mt-4 text-muted">
+          <p className="mt-4 text-2xl leading-tight font-bold md:text-4xl">
+            Learning Enhancement through{' '}
+            <span className="text-brand-strong">Artificial Intelligence</span> and Digital Analytics
+          </p>
+          <p className="mt-4 text-muted-foreground">
             Secure access to your courses, learning support and academic records.
           </p>
         </div>
 
-        <section
-          aria-labelledby="auth-title"
-          className="rounded-lg border border-border bg-surface p-6"
+        <Card
+          className="animate-rise order-1 mx-auto w-full max-w-md md:order-2 gap-6 rounded-[22px] border-0 px-1 py-8 shadow-[var(--lead-shadow-overlay)] sm:px-4"
+          style={{ animationDelay: '120ms' }}
         >
-          <h1 id="auth-title" className="text-xl font-semibold">
-            {title}
-          </h1>
-          {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-          <div className="mt-6">{children}</div>
-        </section>
+          <section aria-labelledby="auth-title">
+            <CardHeader className="items-center text-center">
+              <div className="flex justify-center">
+                <Logo size={88} className="animate-pop" />
+              </div>
+              <CardTitle>
+                <h1 id="auth-title" className="mt-2 text-2xl font-bold">
+                  {title}
+                </h1>
+              </CardTitle>
+              {description && <CardDescription>{description}</CardDescription>}
+            </CardHeader>
+            <CardContent className="mt-6">{children}</CardContent>
+          </section>
+        </Card>
       </div>
     </main>
   );

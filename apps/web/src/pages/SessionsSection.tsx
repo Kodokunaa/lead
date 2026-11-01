@@ -1,5 +1,8 @@
 import type { SessionSummary } from '@lead/schema';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { useAuth } from '../auth/session';
 import { useApiData } from '../auth/use-api';
 import { errorMessage, FormMessage } from '../components/form';
@@ -43,65 +46,68 @@ export function SessionsSection() {
     });
 
   return (
-    <section
-      aria-labelledby="sessions-title"
-      className="mt-6 rounded-lg border border-border bg-surface p-6"
-    >
-      <h2 id="sessions-title" className="font-semibold">
-        Signed-in devices
-      </h2>
-      <p className="mt-1 text-sm text-muted">
-        Sign out anything you do not recognise, then change your password.
-      </p>
-      <div className="mt-4">
-        {error && <FormMessage tone="error">{error}</FormMessage>}
-        {result.status === 'loading' && <p role="status">Loading devices…</p>}
-        {result.status === 'error' && <FormMessage tone="error">{result.message}</FormMessage>}
-        {result.status === 'ready' && (
-          <>
-            <ul aria-label="Signed-in devices" className="divide-y divide-border">
-              {result.data.map((session) => (
-                <li
-                  key={session.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {describeDevice(session.userAgent)}
-                      {session.current && (
-                        <span className="ml-1 text-xs text-muted"> (this device)</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted">
-                      Last active {formatDateTime(session.lastActiveAt)}
-                      {session.ipAddress && ` · ${session.ipAddress}`}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => signOutDevice(session)}
-                    aria-disabled={busy}
-                    aria-label={`Sign out ${describeDevice(session.userAgent)}${session.current ? ' (this device)' : ''}`}
-                    className="rounded-md border border-border px-3 py-1"
+    <Card className="mt-6 px-6">
+      <section aria-labelledby="sessions-title">
+        <h2 id="sessions-title" className="font-semibold">
+          Signed-in devices
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sign out anything you do not recognise, then change your password.
+        </p>
+        <div className="mt-4">
+          {error && <FormMessage tone="error">{error}</FormMessage>}
+          {result.status === 'loading' && <p role="status">Loading devices…</p>}
+          {result.status === 'error' && <FormMessage tone="error">{result.message}</FormMessage>}
+          {result.status === 'ready' && (
+            <>
+              <ul aria-label="Signed-in devices" className="stagger divide-y divide-border">
+                {result.data.map((session) => (
+                  <li
+                    key={session.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm transition-colors hover:bg-accent/40"
                   >
-                    Sign out
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {result.data.some((session) => !session.current) && (
-              <button
-                type="button"
-                onClick={signOutOthers}
-                aria-disabled={busy}
-                className="mt-4 rounded-md border border-border px-3 py-2 text-sm"
-              >
-                Sign out all other devices
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </section>
+                    <div>
+                      <p className="font-medium">
+                        {describeDevice(session.userAgent)}
+                        {session.current && (
+                          <Badge variant="secondary" className="ml-2 rounded-full">
+                            this device
+                          </Badge>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Last active {formatDateTime(session.lastActiveAt)}
+                        {session.ipAddress && ` · ${session.ipAddress}`}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => signOutDevice(session)}
+                      aria-disabled={busy}
+                      aria-label={`Sign out ${describeDevice(session.userAgent)}${session.current ? ' (this device)' : ''}`}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Sign out
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              {result.data.some((session) => !session.current) && (
+                <Button
+                  type="button"
+                  onClick={signOutOthers}
+                  aria-disabled={busy}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Sign out all other devices
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+    </Card>
   );
 }

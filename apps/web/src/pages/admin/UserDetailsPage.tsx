@@ -1,11 +1,14 @@
 import { ROLE_LABELS, ROLES, type UserDetails } from '@lead/schema';
 import { Link } from '@tanstack/react-router';
 import { useId, useState, type ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '../../auth/session';
 import { useApiData } from '../../auth/use-api';
 import { field, FormMessage, SubmitButton, TextField, useFormAction } from '../../components/form';
 import { describeAction, formatDateTime } from '../../components/format';
-import { STATUS_LABELS } from './UsersPage';
+import { StatusBadge } from './StatusBadge';
 
 interface UserDetailsPageProps {
   readonly userId: string;
@@ -32,14 +35,14 @@ export function UserDetailsPage({ userId, currentUserId }: UserDetailsPageProps)
   return (
     <section aria-labelledby="page-title" className="max-w-3xl">
       <p className="text-sm">
-        <Link to="/admin/users" className="underline">
+        <Link to="/admin/users" className="link">
           User Management
         </Link>
       </p>
       <h1 id="page-title" className="mt-2 text-2xl font-bold">
         {user.displayName}
       </h1>
-      <p className="mt-1 text-sm text-muted">{user.email}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
 
       {notice && (
         <div className="mt-4">
@@ -49,20 +52,32 @@ export function UserDetailsPage({ userId, currentUserId }: UserDetailsPageProps)
         </div>
       )}
 
-      <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3">
-        <Fact label="Role">{ROLE_LABELS[user.role]}</Fact>
-        <Fact label="Status">{STATUS_LABELS[user.status]}</Fact>
-        <Fact label="Email">{user.emailVerified ? 'Confirmed' : 'Not confirmed'}</Fact>
-        <Fact label="Two-step verification">{user.mfaEnabled ? 'On' : 'Off'}</Fact>
-        <Fact label="Signed-in devices">{user.activeSessions}</Fact>
-        <Fact label="Last sign-in">
-          {user.lastSignInAt ? formatDateTime(user.lastSignInAt) : 'Never'}
-        </Fact>
-        {user.lockedUntil && <Fact label="Locked until">{formatDateTime(user.lockedUntil)}</Fact>}
-      </dl>
+      <Card className="mt-6 py-5">
+        <CardContent>
+          <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
+            <Fact label="Role">{ROLE_LABELS[user.role]}</Fact>
+            <Fact label="Status">
+              <StatusBadge status={user.status} />
+            </Fact>
+            <Fact label="Email">{user.emailVerified ? 'Confirmed' : 'Not confirmed'}</Fact>
+            <Fact label="Two-step verification">
+              <Badge variant={user.mfaEnabled ? 'default' : 'secondary'} className="rounded-full">
+                {user.mfaEnabled ? 'On' : 'Off'}
+              </Badge>
+            </Fact>
+            <Fact label="Signed-in devices">{user.activeSessions}</Fact>
+            <Fact label="Last sign-in">
+              {user.lastSignInAt ? formatDateTime(user.lastSignInAt) : 'Never'}
+            </Fact>
+            {user.lockedUntil && (
+              <Fact label="Locked until">{formatDateTime(user.lockedUntil)}</Fact>
+            )}
+          </dl>
+        </CardContent>
+      </Card>
 
       {user.id === currentUserId ? (
-        <p className="mt-6 text-sm text-muted">
+        <p className="mt-6 text-sm text-muted-foreground">
           This is your account. Another administrator must change its role or access.
         </p>
       ) : (
@@ -71,24 +86,28 @@ export function UserDetailsPage({ userId, currentUserId }: UserDetailsPageProps)
 
       <h2 className="mt-8 font-semibold">Recent activity</h2>
       {user.activity.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">No activity yet.</p>
+        <p className="mt-2 text-sm text-muted-foreground">No activity yet.</p>
       ) : (
-        <ol className="mt-2 divide-y divide-border rounded-lg border border-border bg-surface text-sm">
-          {user.activity.map((event) => (
-            <li key={event.id} className="px-4 py-2">
-              <span className="font-medium">{describeAction(event.action)}</span>
-              {event.outcome !== 'success' && (
-                <span className="text-danger"> ({event.outcome})</span>
-              )}
-              <span className="text-muted">
-                {' · '}
-                {formatDateTime(event.occurredAt)}
-                {event.actorName && ` · by ${event.actorName}`}
-              </span>
-              {event.reason && <div className="text-muted">Reason: {event.reason}</div>}
-            </li>
-          ))}
-        </ol>
+        <Card className="mt-2 gap-0 py-0">
+          <ol className="stagger divide-y divide-border text-sm">
+            {user.activity.map((event) => (
+              <li key={event.id} className="px-4 py-2">
+                <span className="font-medium">{describeAction(event.action)}</span>
+                {event.outcome !== 'success' && (
+                  <span className="text-danger"> ({event.outcome})</span>
+                )}
+                <span className="text-muted-foreground">
+                  {' · '}
+                  {formatDateTime(event.occurredAt)}
+                  {event.actorName && ` · by ${event.actorName}`}
+                </span>
+                {event.reason && (
+                  <div className="text-muted-foreground">Reason: {event.reason}</div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </Card>
       )}
     </section>
   );
@@ -97,7 +116,7 @@ export function UserDetailsPage({ userId, currentUserId }: UserDetailsPageProps)
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-muted">{label}</dt>
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="font-medium">{children}</dd>
     </div>
   );
@@ -112,7 +131,7 @@ interface AccountActionsProps {
 function AccountActions({ user, onStart, onDone }: AccountActionsProps) {
   const waiting = user.status === 'pending' && user.emailVerified;
   return (
-    <div className="mt-6 grid gap-4">
+    <div className="stagger mt-6 grid gap-4">
       {waiting && (
         <ActionForm
           title="Approve this account"
@@ -182,14 +201,12 @@ function RoleSelect({ current }: { current: UserDetails['role'] }) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">
-        New role
-      </label>
+      <Label htmlFor={id}>New role</Label>
       <select
         id={id}
         name="role"
         defaultValue={ROLES.find((role) => role !== current)}
-        className="rounded-md border border-border bg-surface px-3 py-2 text-sm"
+        className="h-11 rounded-xl border border-input bg-background px-4 text-sm shadow-xs transition-[color,box-shadow] focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:outline-none"
       >
         {ROLES.filter((role) => role !== current).map((role) => (
           <option key={role} value={role}>
@@ -238,40 +255,48 @@ function ActionForm({
   });
 
   return (
-    <form
-      onSubmit={onSubmit}
-      aria-labelledby={headingId}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
-      noValidate
-    >
-      <h2 id={headingId} className="font-semibold">
-        {title}
-      </h2>
-      {description && <p className="text-sm text-muted">{description}</p>}
-      {error && <FormMessage tone="error">{error}</FormMessage>}
-      {extra}
-      {needsReason && (
-        <TextField
-          label="Reason"
-          name="reason"
-          hint="Recorded in the audit log."
-          required
-          minLength={3}
-        />
-      )}
-      {needsPassword && (
-        <TextField
-          label="Your password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          hint="Confirms it is really you before removing someone's second factor."
-          required
-        />
-      )}
-      <div>
-        <SubmitButton busy={busy}>{action}</SubmitButton>
-      </div>
-    </form>
+    <Card className="card-interactive gap-4">
+      <CardHeader>
+        <CardTitle>
+          <h2 id={headingId} className="text-base font-semibold">
+            {title}
+          </h2>
+        </CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={onSubmit}
+          aria-labelledby={headingId}
+          className="flex flex-col gap-3"
+          noValidate
+        >
+          {error && <FormMessage tone="error">{error}</FormMessage>}
+          {extra}
+          {needsReason && (
+            <TextField
+              label="Reason"
+              name="reason"
+              hint="Recorded in the audit log."
+              required
+              minLength={3}
+            />
+          )}
+          {needsPassword && (
+            <TextField
+              label="Your password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              hint="Confirms it is really you before removing someone's second factor."
+              required
+            />
+          )}
+          <div>
+            <SubmitButton busy={busy}>{action}</SubmitButton>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

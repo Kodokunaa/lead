@@ -1,6 +1,7 @@
 import { NAVIGATION, type Role } from '@lead/schema';
 import { Link } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
+import { Logo } from '../components/Logo';
 import { NAV_ICONS } from './nav-icons';
 
 interface SidebarProps {
@@ -13,20 +14,15 @@ export function Sidebar({ role, onNavigate, onLogout }: SidebarProps) {
   return (
     <div className="flex h-full flex-col gap-4 p-3">
       <div className="flex items-center gap-3 px-2 py-1">
-        <span
-          aria-hidden="true"
-          className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-surface text-xs font-bold"
-        >
-          CCC
-        </span>
+        <Logo size={44} className="shrink-0 transition-transform duration-500 hover:rotate-12" />
         <div className="leading-tight">
-          <p className="font-semibold">Project LEAD</p>
-          <p className="text-xs text-muted">City College of Calapan</p>
+          <p className="font-bold">Project LEAD</p>
+          <p className="text-xs text-muted-foreground">City College of Calapan</p>
         </div>
       </div>
 
       <nav aria-label="Main" className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-        <ul className="flex flex-col gap-1">
+        <ul className="stagger flex flex-col gap-1">
           {NAVIGATION[role].map((item) => {
             const Icon = NAV_ICONS[item.icon];
             return (
@@ -35,9 +31,16 @@ export function Sidebar({ role, onNavigate, onLogout }: SidebarProps) {
                   to={item.path}
                   onClick={onNavigate}
                   activeOptions={{ exact: item.path === `/${role}` }}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-text hover:bg-surface-muted aria-[current=page]:bg-surface-muted aria-[current=page]:font-semibold"
+                  className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text transition-all duration-200 hover:translate-x-1 hover:bg-brand-soft aria-[current=page]:bg-brand-soft aria-[current=page]:font-semibold aria-[current=page]:text-brand-strong"
                 >
-                  <Icon aria-hidden="true" className="size-4 shrink-0" />
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-1/2 left-0 h-0 w-1 -translate-y-1/2 rounded-full bg-brand transition-all duration-300 group-aria-[current=page]:h-6"
+                  />
+                  <Icon
+                    aria-hidden="true"
+                    className="size-4 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                  />
                   {item.label}
                 </Link>
               </li>
@@ -49,7 +52,7 @@ export function Sidebar({ role, onNavigate, onLogout }: SidebarProps) {
       <button
         type="button"
         onClick={onLogout}
-        className="flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-surface-muted"
+        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-200 hover:bg-brand-soft hover:text-brand-strong"
       >
         <LogOut aria-hidden="true" className="size-4" />
         Logout

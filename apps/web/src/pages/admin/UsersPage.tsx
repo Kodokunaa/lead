@@ -5,10 +5,25 @@ import {
   type UserSummary,
 } from '@lead/schema';
 import { Link } from '@tanstack/react-router';
+import { cn } from 'cn';
+import { Search } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useApiData } from '../../auth/use-api';
 import { FormMessage } from '../../components/form';
 import { formatDateTime } from '../../components/format';
+import { StatusBadge } from './StatusBadge';
 
 type StatusFilter = AccountStatus | 'all';
 
@@ -19,13 +34,6 @@ const FILTERS: readonly { value: StatusFilter; label: string }[] = [
   { value: 'deactivated', label: 'Deactivated' },
   { value: 'rejected', label: 'Rejected' },
 ];
-
-export const STATUS_LABELS: Readonly<Record<AccountStatus, string>> = {
-  pending: 'Pending',
-  active: 'Active',
-  deactivated: 'Deactivated',
-  rejected: 'Rejected',
-};
 
 function listPath(status: StatusFilter, q: string, page: number): string {
   const params = new URLSearchParams();
@@ -60,7 +68,7 @@ export function UsersPage() {
       <h1 id="page-title" className="text-2xl font-bold">
         User Management
       </h1>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         Approve registrations, and change roles or access. Every change needs a reason and is
         recorded in the audit log.
       </p>
@@ -70,23 +78,29 @@ export function UsersPage() {
         role="group"
         aria-label="Filter by status"
       >
-        {FILTERS.map((filter) => (
-          <button
-            key={filter.value}
-            type="button"
-            aria-pressed={status === filter.value}
-            onClick={() => choose(filter.value)}
-            className="rounded-full border border-border px-3 py-1 text-sm aria-pressed:bg-brand aria-pressed:text-brand-text"
-          >
-            {filter.label}
-            {filter.value === 'pending' && awaiting !== null && awaiting > 0 && (
-              <>
-                {' '}
-                <span className="font-semibold">({awaiting})</span>
-              </>
-            )}
-          </button>
-        ))}
+        {FILTERS.map((filter) => {
+          const pressed = status === filter.value;
+          const showCount = filter.value === 'pending' && awaiting !== null && awaiting > 0;
+          return (
+            <Button
+              key={filter.value}
+              type="button"
+              size="sm"
+              variant={pressed ? 'default' : 'outline'}
+              aria-pressed={pressed}
+              onClick={() => choose(filter.value)}
+              className={cn('rounded-full', showCount && !pressed && 'animate-glow')}
+            >
+              {filter.label}
+              {showCount && (
+                <>
+                  {' '}
+                  <span className="font-bold">({awaiting})</span>
+                </>
+              )}
+            </Button>
+          );
+        })}
       </div>
 
       <form
@@ -98,17 +112,23 @@ export function UsersPage() {
         <label htmlFor="user-search" className="sr-only">
           Search by name or email
         </label>
-        <input
-          id="user-search"
-          name="q"
-          type="search"
-          placeholder="Search by name or email"
-          defaultValue={q}
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm"
-        />
-        <button type="submit" className="rounded-md border border-border px-3 py-2 text-sm">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id="user-search"
+            name="q"
+            type="search"
+            placeholder="Search by name or email"
+            defaultValue={q}
+            className="h-10 rounded-xl pl-9"
+          />
+        </div>
+        <Button type="submit" variant="outline" className="h-10">
           Search
-        </button>
+        </Button>
       </form>
 
       <div className="mt-4">
@@ -135,58 +155,58 @@ interface UserTableProps {
 }
 
 function UserTable({ response, onPage, emptyText }: UserTableProps) {
-  if (response.items.length === 0) return <p className="text-sm text-muted">{emptyText}</p>;
+  if (response.items.length === 0) {
+    return <p className="text-sm text-muted-foreground">{emptyText}</p>;
+  }
   const lastPage = Math.max(1, Math.ceil(response.total / response.pageSize));
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Accounts</caption>
-          <thead className="border-b border-border text-muted">
-            <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
+      <Card className="gap-0 overflow-hidden py-0">
+        <Table>
+          <TableCaption className="sr-only">Accounts</TableCaption>
+          <TableHeader className="bg-muted/60">
+            <TableRow>
+              <TableHead scope="col" className="px-4">
                 Name
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Role
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Status
-              </th>
-              <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">
+              </TableHead>
+              <TableHead scope="col">Role</TableHead>
+              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col" className="hidden md:table-cell">
                 Requested
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="animate-fade">
             {response.items.map((user) => (
               <UserRow key={user.id} user={user} />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
       <nav aria-label="Pages" className="mt-3 flex items-center justify-between text-sm">
         <span aria-live="polite">
           Page {response.page} of {lastPage} · {response.total} accounts
         </span>
         <span className="flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={response.page <= 1}
             onClick={() => onPage(response.page - 1)}
-            className="rounded-md border border-border px-3 py-1 disabled:opacity-50"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={response.page >= lastPage}
             onClick={() => onPage(response.page + 1)}
-            className="rounded-md border border-border px-3 py-1 disabled:opacity-50"
           >
             Next
-          </button>
+          </Button>
         </span>
       </nav>
     </>
@@ -196,27 +216,23 @@ function UserTable({ response, onPage, emptyText }: UserTableProps) {
 function UserRow({ user }: { user: UserSummary }) {
   const waiting = user.status === 'pending' && user.emailVerified;
   return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-3 py-2">
-        <Link
-          to="/admin/users/$userId"
-          params={{ userId: user.id }}
-          className="font-medium underline"
-        >
+    <TableRow className="transition-colors hover:bg-accent/60">
+      <TableCell className="px-4 whitespace-normal">
+        <Link to="/admin/users/$userId" params={{ userId: user.id }} className="link">
           {user.displayName}
         </Link>
-        <div className="text-xs text-muted">{user.email}</div>
-      </td>
-      <td className="px-3 py-2">{ROLE_LABELS[user.role]}</td>
-      <td className="px-3 py-2">
-        {STATUS_LABELS[user.status]}
+        <div className="text-xs text-muted-foreground">{user.email}</div>
+      </TableCell>
+      <TableCell>{ROLE_LABELS[user.role]}</TableCell>
+      <TableCell className="whitespace-normal">
+        <StatusBadge status={user.status} />
         {user.status === 'pending' && (
-          <div className="text-xs text-muted">
+          <div className="mt-1 text-xs text-muted-foreground">
             {waiting ? 'Email confirmed, ready to approve' : 'Email not confirmed yet'}
           </div>
         )}
-      </td>
-      <td className="hidden px-3 py-2 md:table-cell">{formatDateTime(user.createdAt)}</td>
-    </tr>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">{formatDateTime(user.createdAt)}</TableCell>
+    </TableRow>
   );
 }

@@ -1,4 +1,15 @@
 import { ROLE_LABELS, ROLES, type Role } from '@lead/schema';
+import { Check, Minus } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /** What each role may do today. Grows with each phase; the API enforces it, not this page. */
 const CAPABILITIES: readonly { label: string; roles: readonly Role[] }[] = [
@@ -16,53 +27,57 @@ export function RolesPage() {
       <h1 id="page-title" className="text-2xl font-bold">
         Roles & Permissions
       </h1>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         LEAD has three fixed roles. Administrators cannot register themselves; another administrator
         assigns the role. This table grows as course, grading and analytics features arrive.
       </p>
-      <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">What each role can do</caption>
-          <thead className="border-b border-border text-muted">
-            <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
+      <Card className="mt-6 gap-0 overflow-hidden py-0">
+        <Table>
+          <TableCaption className="sr-only">What each role can do</TableCaption>
+          <TableHeader className="bg-muted/60">
+            <TableRow>
+              <TableHead scope="col" className="px-4">
                 Permission
-              </th>
+              </TableHead>
               {ROLES.map((role) => (
-                <th key={role} scope="col" className="px-3 py-2 text-center font-medium">
+                <TableHead key={role} scope="col" className="text-center">
                   {ROLE_LABELS[role]}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="animate-fade">
             {CAPABILITIES.map((capability) => (
-              <tr key={capability.label} className="border-b border-border last:border-0">
-                <th scope="row" className="px-3 py-2 font-normal">
+              <TableRow key={capability.label}>
+                <TableHead
+                  scope="row"
+                  className="px-4 font-normal whitespace-normal text-foreground"
+                >
                   {capability.label}
-                </th>
+                </TableHead>
                 {ROLES.map((role) => (
-                  <td key={role} className="px-3 py-2 text-center">
+                  <TableCell key={role} className="text-center">
                     {capability.roles.includes(role) ? (
                       <>
-                        <span aria-hidden="true">✓</span>
+                        <Check aria-hidden="true" className="mx-auto size-5 text-brand-strong" />
                         <span className="sr-only">Yes</span>
                       </>
                     ) : (
                       <>
-                        <span aria-hidden="true" className="text-muted">
-                          –
-                        </span>
+                        <Minus
+                          aria-hidden="true"
+                          className="mx-auto size-4 text-muted-foreground"
+                        />
                         <span className="sr-only">No</span>
                       </>
                     )}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </section>
   );
 }

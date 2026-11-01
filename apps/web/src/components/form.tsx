@@ -7,6 +7,12 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
+import { cn } from 'cn';
+import { CircleAlert, CircleCheck } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ApiError } from '../auth/api';
 
 interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
@@ -18,18 +24,19 @@ export function TextField({ label, hint, className, ...input }: TextFieldProps) 
   const id = useId();
   const hintId = `${id}-hint`;
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         aria-describedby={hint ? hintId : undefined}
-        className={`rounded-md border border-border bg-surface px-3 py-2 text-sm ${className ?? ''}`}
+        className={cn(
+          'h-11 rounded-xl px-4 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20',
+          className,
+        )}
         {...input}
       />
       {hint && (
-        <p id={hintId} className="text-xs text-muted">
+        <p id={hintId} className="text-xs text-muted-foreground">
           {hint}
         </p>
       )}
@@ -48,14 +55,9 @@ interface SubmitButtonProps {
  */
 export function SubmitButton({ busy, children }: SubmitButtonProps) {
   return (
-    <button
-      type="submit"
-      aria-disabled={busy}
-      aria-busy={busy}
-      className="rounded-md bg-brand px-4 py-2.5 text-sm font-medium text-brand-text hover:opacity-90 aria-disabled:opacity-60"
-    >
+    <Button type="submit" size="lg" aria-disabled={busy} aria-busy={busy}>
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -78,18 +80,22 @@ interface FormMessageProps {
  * what changed instead of where the replaced form used to be.
  */
 export function FormMessage({ tone, children }: FormMessageProps) {
-  const ref = useFocusOnMount<HTMLParagraphElement>();
+  const ref = useFocusOnMount<HTMLDivElement>();
+  const Icon = tone === 'error' ? CircleAlert : CircleCheck;
   return (
-    <p
+    <Alert
       ref={ref}
       tabIndex={-1}
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`rounded-md border px-3 py-2 text-sm ${
-        tone === 'error' ? 'border-danger text-danger' : 'border-border bg-surface-muted'
-      }`}
+      variant={tone === 'error' ? 'destructive' : 'default'}
+      className={cn(
+        'animate-rise rounded-xl outline-none',
+        tone === 'error' ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-accent',
+      )}
     >
-      {children}
-    </p>
+      <Icon aria-hidden="true" />
+      <AlertDescription className="text-current">{children}</AlertDescription>
+    </Alert>
   );
 }
 

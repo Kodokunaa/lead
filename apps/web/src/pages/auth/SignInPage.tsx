@@ -46,10 +46,10 @@ function PasswordStep({ onMfaRequired }: { onMfaRequired: (token: string) => voi
         <SubmitButton busy={busy}>{busy ? 'Signing in…' : 'Sign in'}</SubmitButton>
       </form>
       <div className="mt-6 flex flex-wrap justify-between gap-2 text-sm">
-        <Link to="/forgot-password" className="underline">
+        <Link to="/forgot-password" className="link">
           Forgot password?
         </Link>
-        <Link to="/register" className="underline">
+        <Link to="/register" className="link">
           Request an account
         </Link>
       </div>
@@ -101,10 +101,10 @@ function SecondFactorStep({ challengeToken, onCancel }: SecondFactorStepProps) {
         <SubmitButton busy={busy}>{busy ? 'Checking…' : 'Verify'}</SubmitButton>
       </form>
       <div className="mt-6 flex flex-wrap justify-between gap-2 text-sm">
-        <button type="button" onClick={toggle} className="underline">
+        <button type="button" onClick={toggle} className="link">
           {useRecoveryCode ? 'Use the authenticator app' : 'Use a recovery code'}
         </button>
-        <button type="button" onClick={onCancel} className="underline">
+        <button type="button" onClick={onCancel} className="link">
           Back to sign in
         </button>
       </div>
