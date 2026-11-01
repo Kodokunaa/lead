@@ -13,7 +13,7 @@ export class ApiError extends Error {
 const FALLBACK_MESSAGE = 'Something went wrong. Check your connection and try again.';
 
 export interface ApiRequest {
-  readonly method?: 'GET' | 'POST';
+  readonly method?: 'GET' | 'POST' | 'PATCH';
   readonly body?: unknown;
   readonly accessToken?: string | null;
 }

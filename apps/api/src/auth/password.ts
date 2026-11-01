@@ -30,7 +30,14 @@ export async function verifyPassword(
   storedHash: string | null,
   password: string,
 ): Promise<boolean> {
-  if (storedHash) return verify(storedHash, password);
+  if (storedHash) {
+    try {
+      return await verify(storedHash, password);
+    } catch {
+      // A damaged or foreign hash format is a failed sign-in, not a server error.
+      return false;
+    }
+  }
   await verify(await getDummyHash(), password);
   return false;
 }

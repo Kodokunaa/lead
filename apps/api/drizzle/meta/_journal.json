@@ -43,6 +43,13 @@
       "when": 1793489247214,
       "tag": "0005_mfa_and_account_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793495840689,
+      "tag": "0006_account_status_rejected",
+      "breakpoints": true
     }
   ]
 }

@@ -75,7 +75,7 @@ Phase 7 also prepares the Chapter 3–4 evaluation (functionality, usability, pe
 
 **Phase 0 — done (2026-10-31).** Monorepo, Docker services, CI (format, lint, build, typecheck, test), shared `schema` and `ui-tokens` packages, NestJS API with health check and append-only audit module, React shell with per-role sidebars and a dev-only preview sign-in. The API integration tests (audit + health) need `pnpm services:up` and have not run locally yet.
 
-**Phase 1 — in progress.**
+**Phase 1 — identity and access.**
 
 Slice 1 (API sign-in core) — done:
 
@@ -107,9 +107,18 @@ Slice 3 (web sign-in, H01–H05 and the H08 security page) — done:
 - Auth API responses are sent with `Cache-Control: no-store`.
 - Checked end to end in the browser against the real API and PostgreSQL: request account, confirm by email link, approve, sign in, set up MFA, sign out, sign in with a code.
 
-Next slice:
+Slice 4 (account administration and self-service: A02–A04, A16, H07–H08, X04) — done:
 
-4. Admin: users, account details, roles and permissions, approval queue (A02–A04, A16); profile, preferences, sessions list, search (H07–H09); access denied (X04).
+- User Management (A02): filter by status (the "Waiting for approval" filter is the A16 queue, with its count), search by name or email (wildcards escaped), paging. User details (A03): facts, recent activity, and the changes an administrator can make: approve (confirmed email and password required; the person is emailed), reject (its own `rejected` status, which cannot be reactivated), deactivate and reactivate, change role, reset two-step verification (also needs the administrator's own password). Every change except approval needs a reason; all are audited with before and after values (MFA secrets recorded only as present or absent), and deactivation, role change and MFA reset sign the person out everywhere and email them.
+- Administrator changes run one at a time (advisory lock), re-check that the acting administrator still is one, and refuse to remove the last active administrator; administrators cannot change their own account. A test holds the lock to force two administrators removing each other at once.
+- Roles & Permissions (A04): a read-only table of what each role can do, until custom permissions are needed.
+- Profile (H07): change name; change password (current password required, counts towards lockout, refused if the password changed meanwhile, signs out other devices, emails a notice).
+- Security page (H08): signed-in devices, one per session, with sign-out for each device or all others.
+- Access denied (X04): another role's page shows an explanation instead of a silent redirect.
+- Data on screen stays in place while it refreshes; stale answers are dropped.
+- Not built yet: permission-scoped search (H09) waits for courses and content (Phase 2); the account menu's notifications (H06) arrive with Phase 3.
+
+**Phase 1 — done** apart from H09 search, moved to Phase 2.
 
 ## Seed data
 

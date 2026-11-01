@@ -53,7 +53,22 @@ export function installFakeApi(user: CurrentUser | null = null): FakeApi {
     user ? sessionFor(user) : { status: 401, body: { code: 'session_invalid' } },
   );
   api.on('POST /auth/sign-out', { status: 204 });
-  if (user) api.on('GET /auth/me', { status: 200, body: user });
+  if (user) {
+    api.on('GET /auth/me', { status: 200, body: user });
+    api.on('GET /me/sessions', {
+      status: 200,
+      body: [
+        {
+          id: '0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e',
+          startedAt: '2026-11-01T00:00:00.000Z',
+          lastActiveAt: '2026-11-01T00:00:00.000Z',
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/150.0',
+          ipAddress: '127.0.0.1',
+          current: true,
+        },
+      ],
+    });
+  }
 
   vi.stubGlobal(
     'fetch',

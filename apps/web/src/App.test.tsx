@@ -43,11 +43,16 @@ describe('App shell', () => {
     expect(screen.getByText('T19')).toBeInTheDocument();
   });
 
-  it("redirects a role away from another role's pages", async () => {
+  it("shows access denied (X04) on another role's pages", async () => {
     installFakeApi(fakeUser('student'));
     const { history } = renderApp('/admin/audit');
+
+    expect(
+      await screen.findByRole('heading', { name: 'You do not have access to this page' }),
+    ).toBeInTheDocument();
+    expect(history.location.pathname).toBe('/access-denied');
+    await userEvent.click(screen.getByRole('link', { name: 'Go to your dashboard' }));
     expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(history.location.pathname).toBe('/student');
   });
 
   it('opens shared pages for any role', async () => {

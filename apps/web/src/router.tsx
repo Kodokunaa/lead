@@ -9,11 +9,18 @@ import {
   type AnyRoute,
   type RouterHistory,
 } from '@tanstack/react-router';
+import type { CurrentUser } from '@lead/schema';
+import type { ComponentType, ReactElement } from 'react';
 import type { SessionState } from './auth/auth-store';
 import { useSession } from './auth/session';
 import { ForgotPasswordPage, RegisterPage, TokenPasswordPage } from './pages/auth/AccountPages';
 import { SignInPage } from './pages/auth/SignInPage';
+import { AccessDeniedPage } from './pages/AccessDeniedPage';
+import { RolesPage } from './pages/admin/RolesPage';
+import { UserDetailsPage } from './pages/admin/UserDetailsPage';
+import { UsersPage } from './pages/admin/UsersPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { SecurityPage } from './pages/SecurityPage';
 import { AppShell } from './shell/AppShell';
 
@@ -56,10 +63,34 @@ function SignedInLayout() {
   );
 }
 
-function SecurityRoute() {
-  const session = useSession();
-  return session.status === 'signed-in' ? <SecurityPage user={session.user} /> : null;
+/** Renders a page that needs the signed-in user (always present under the signed-in layout). */
+function withUser(Page: ComponentType<{ user: CurrentUser }>) {
+  return function SignedInPage() {
+    const session = useSession();
+    return session.status === 'signed-in' ? <Page user={session.user} /> : null;
+  };
 }
+
+function UserDetailsRoute(): ReactElement | null {
+  // The tree is assembled from lists, so the router cannot infer this route's params itself.
+  const userId = userDetailsRoute.useParams({
+    select: (params: { userId: string }) => params.userId,
+  });
+  const session = useSession();
+  if (session.status !== 'signed-in') return null;
+  return <UserDetailsPage key={userId} userId={userId} currentUserId={session.user.id} />;
+}
+
+function AccessDeniedRoute() {
+  const session = useSession();
+  return session.status === 'signed-in' ? <AccessDeniedPage role={session.user.role} /> : null;
+}
+
+/** Screens that are built; every other navigation entry still shows its placeholder. */
+const BUILT_PAGES: Readonly<Partial<Record<string, () => ReactElement>>> = {
+  '/admin/users': UsersPage,
+  '/admin/roles': RolesPage,
+};
 
 /** Pages opened from emailed links read their token from the URL fragment. */
 function LinkTokenPage({ kind }: { kind: 'confirm' | 'reset' }) {
@@ -81,7 +112,7 @@ const signInRoute = createRoute({
     const role = roleOf(context.session);
     if (!role) return;
     // Checked here, not only in validateSearch: the router passes unvalidated keys through.
-    // A role guard further down sends a link to another role's page back to this role's home.
+    // A link to another role's page ends on the access-denied page (X04) via requireRole.
     const target = safeRedirect(search.redirect);
     if (target) throw redirect({ href: target });
     throw redirect({ to: homePathFor(role) });
@@ -121,6 +152,13 @@ const signedInRoute = createRoute({
   component: SignedInLayout,
 });
 
+/** Client-side convenience only: the API enforces role access. */
+function requireRole(role: Role) {
+  return ({ context }: { context: RouterContext }) => {
+    if (roleOf(context.session) !== role) throw redirect({ to: '/access-denied' });
+  };
+}
+
 function roleRoutes(role: Role): AnyRoute[] {
   return NAVIGATION[role]
     .filter((item) => item.path.startsWith(`/${role}`))
@@ -128,15 +166,29 @@ function roleRoutes(role: Role): AnyRoute[] {
       createRoute({
         getParentRoute: () => signedInRoute,
         path: item.path,
-        // Client-side convenience only: the API enforces role access.
-        beforeLoad: ({ context }: { context: RouterContext }) => {
-          const current = roleOf(context.session);
-          if (current !== role) throw redirect({ to: homePathFor(current ?? role) });
-        },
-        component: () => <PlaceholderPage title={item.label} screen={item.screen} />,
+        beforeLoad: requireRole(role),
+        component:
+          BUILT_PAGES[item.path] ??
+          (() => <PlaceholderPage title={item.label} screen={item.screen} />),
       }),
     );
 }
+
+const userDetailsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/users/$userId',
+  beforeLoad: requireRole('admin'),
+  component: UserDetailsRoute,
+});
+
+const extraSignedInRoutes = [
+  userDetailsRoute,
+  createRoute({
+    getParentRoute: () => signedInRoute,
+    path: '/access-denied',
+    component: AccessDeniedRoute,
+  }),
+];
 
 const sharedRoutes = (Object.keys(SHARED_ROUTES) as (keyof typeof SHARED_ROUTES)[]).map((key) =>
   createRoute({
@@ -144,15 +196,21 @@ const sharedRoutes = (Object.keys(SHARED_ROUTES) as (keyof typeof SHARED_ROUTES)
     path: SHARED_ROUTES[key].path,
     component:
       key === 'security'
-        ? SecurityRoute
-        : () => <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />,
+        ? withUser(SecurityPage)
+        : key === 'profile'
+          ? withUser(ProfilePage)
+          : () => <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />,
   }),
 );
 
 const routeTree = rootRoute.addChildren([
   signInRoute,
   ...accountRoutes,
-  signedInRoute.addChildren([...ROLES.flatMap(roleRoutes), ...sharedRoutes]),
+  signedInRoute.addChildren([
+    ...ROLES.flatMap(roleRoutes),
+    ...extraSignedInRoutes,
+    ...sharedRoutes,
+  ]),
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

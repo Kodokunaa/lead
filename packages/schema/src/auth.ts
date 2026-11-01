@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { roleSchema } from './roles';
 
-export const ACCOUNT_STATUSES = ['pending', 'active', 'deactivated'] as const;
+export const ACCOUNT_STATUSES = ['pending', 'active', 'deactivated', 'rejected'] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 /** Emails are compared case-insensitively, so they are trimmed and lowercased everywhere. */

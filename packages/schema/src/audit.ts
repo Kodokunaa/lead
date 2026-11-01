@@ -18,6 +18,9 @@ export const REASON_REQUIRED_ACTIONS = [
   'resource.withdrawn',
   'grading_policy.changed',
   'backup.restored',
+  'account.rejected',
+  'account.reactivated',
+  'account.mfa_reset',
 ] as const;
 
 /**
@@ -42,6 +45,9 @@ export const KNOWN_ACTIONS = [
   'auth.password_reset_requested',
   'auth.password_reset',
   'auth.password_reset_failed',
+  'auth.password_changed',
+  'account.approved',
+  'account.profile_updated',
   'intervention.assigned',
   'backup.completed',
 ] as const;

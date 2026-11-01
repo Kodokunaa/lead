@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
@@ -8,6 +9,7 @@ import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
+import { MeModule } from './me/me.module';
 
 /**
  * Default per-IP request budget, sized for a classroom behind one shared campus IP.
@@ -22,6 +24,8 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     AuditModule,
     MailModule,
     AuthModule,
+    AdminModule,
+    MeModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

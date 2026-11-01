@@ -2,6 +2,7 @@ import type { CurrentUser, MfaEnableResponse, MfaSetupResponse } from '@lead/sch
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/session';
+import { SessionsSection } from './SessionsSection';
 import {
   field,
   FormMessage,
@@ -24,6 +25,7 @@ export function SecurityPage({ user }: SecurityPageProps) {
       </h1>
       <p className="mt-1 text-sm text-muted">Signed in as {user.email}</p>
       <TwoStepSection enabled={user.mfaEnabled} />
+      <SessionsSection />
     </section>
   );
 }
