@@ -372,6 +372,13 @@ export function CourseOutlinePage({ courseId }: { courseId: string }) {
           </div>
           <TextField label="Lesson title" name="title" required maxLength={120} />
         </FormDialog>
+        <Link
+          to="/teacher/content/$courseId/resources"
+          params={{ courseId }}
+          className="link self-center text-sm"
+        >
+          Resources
+        </Link>
       </div>
     </section>
   );

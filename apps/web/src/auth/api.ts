@@ -14,14 +14,21 @@ const FALLBACK_MESSAGE = 'Something went wrong. Check your connection and try ag
 
 export interface ApiRequest {
   readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
+  /** Sent as JSON, or as multipart form data when it is a FormData (file uploads). */
   readonly body?: unknown;
   readonly accessToken?: string | null;
+  /** `blob` for file downloads; errors still arrive as JSON. */
+  readonly expect?: 'json' | 'blob';
 }
 
-/** JSON request to the API on this origin (Vite proxies /api in development). */
+/** Request to the API on this origin (Vite proxies /api in development). */
 export async function apiRequest<T>(path: string, request: ApiRequest = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (request.body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = typeof FormData !== 'undefined' && request.body instanceof FormData;
+  const headers: Record<string, string> = {
+    Accept: request.expect === 'blob' ? '*/*' : 'application/json',
+  };
+  // The browser sets the multipart boundary itself, so no Content-Type for form data.
+  if (request.body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (request.accessToken) headers.Authorization = `Bearer ${request.accessToken}`;
 
   let response: Response;
@@ -29,7 +36,12 @@ export async function apiRequest<T>(path: string, request: ApiRequest = {}): Pro
     response = await fetch(`/api${path}`, {
       method: request.method ?? (request.body === undefined ? 'GET' : 'POST'),
       headers,
-      body: request.body === undefined ? undefined : JSON.stringify(request.body),
+      body:
+        request.body === undefined
+          ? undefined
+          : isForm
+            ? request.body
+            : JSON.stringify(request.body),
       credentials: 'same-origin',
     });
   } catch {
@@ -37,6 +49,7 @@ export async function apiRequest<T>(path: string, request: ApiRequest = {}): Pro
   }
 
   if (response.status === 204) return undefined as T;
+  if (request.expect === 'blob' && response.ok) return (await response.blob()) as T;
   const payload = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) throw toApiError(response.status, payload);
   return payload as T;

@@ -449,8 +449,11 @@ export class ContentService {
     });
   }
 
-  /** The course, if the teacher teaches one of its sections this term; 404 otherwise. */
-  private async teachableCourse(
+  /**
+   * The course, if the teacher teaches one of its sections this term; 404 otherwise. Resources
+   * use the same rule, so it is public.
+   */
+  async teachableCourse(
     executor: DbExecutor,
     teacher: UserRow,
     courseId: string,

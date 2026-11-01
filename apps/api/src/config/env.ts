@@ -22,6 +22,10 @@ const envSchema = z.object({
   }),
   /** Where the development mailer writes emails (one .eml file each) instead of sending them. */
   MAIL_OUTBOX_DIR: z.string().min(1).default('storage/outbox'),
+  /** Where uploaded course resources are kept (local disk until MinIO is set up). */
+  RESOURCE_STORAGE_DIR: z.string().min(1).default('storage/resources'),
+  /** Resource uploads per minute from one address; they are held in memory while checked. */
+  UPLOADS_PER_MINUTE: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Signs access tokens. 32+ random characters; rotating it signs everyone out within minutes. */
   JWT_SECRET: z.string().min(32),
 });

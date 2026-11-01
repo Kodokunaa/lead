@@ -74,7 +74,13 @@ export function installFakeApi(user: CurrentUser | null = null): FakeApi {
     'fetch',
     vi.fn(async (input: string, init: RequestInit = {}) => {
       const route = `${init.method ?? 'GET'} ${input.replace(/^\/api/, '')}`;
-      const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
+      // Form uploads are kept as FormData so tests can inspect their fields and files.
+      const body: unknown =
+        typeof init.body === 'string'
+          ? JSON.parse(init.body)
+          : init.body instanceof FormData
+            ? init.body
+            : undefined;
       calls.push(route);
       bodies.set(route, body);
       const handler = handlers.get(route);

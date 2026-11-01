@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CoursesTab } from './CoursesTab';
 import { ProgramsTab } from './ProgramsTab';
@@ -12,6 +13,14 @@ export function CatalogPage() {
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         The courses CCC offers, the programs they belong to, and the school terms.
+      </p>
+      <p className="mt-3 flex flex-wrap gap-4 text-sm">
+        <Link to="/admin/courses/calendar" className="link">
+          Academic calendar
+        </Link>
+        <Link to="/admin/courses/resources" className="link">
+          Resource library
+        </Link>
       </p>
       <Tabs defaultValue="courses" className="mt-6">
         <TabsList>

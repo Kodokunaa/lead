@@ -78,6 +78,9 @@ export const KNOWN_ACTIONS = [
   'calendar_event.created',
   'calendar_event.updated',
   'calendar_event.removed',
+  'resource.submitted',
+  'resource.approved',
+  'resource.returned',
   'intervention.assigned',
   'backup.completed',
 ] as const;

@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { runMigrations } from '../src/database/migrate';
 
 /**
@@ -37,4 +39,8 @@ export function setTestApiEnv(appUrl: string): void {
   process.env.WEB_ORIGIN ??= 'http://localhost:5173';
   process.env.JWT_SECRET ??= 'test-only-jwt-secret-that-is-long-enough';
   process.env.MFA_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64url');
+  // Uploaded test files go to the system temp folder, not the developer's storage folder.
+  process.env.RESOURCE_STORAGE_DIR ??= join(tmpdir(), 'lead-test-resources');
+  // Every test request comes from one address; the upload limit is for real classrooms.
+  process.env.UPLOADS_PER_MINUTE ??= '1000';
 }

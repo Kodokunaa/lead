@@ -24,6 +24,9 @@ import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/Cour
 import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
 import { ModuleEditorPage } from './pages/teacher/content/ModuleEditorPage';
 import { CalendarPage } from './pages/admin/calendar/CalendarPage';
+import { ResourceLibraryPage } from './pages/admin/resources/ResourceLibraryPage';
+import { ResourceReviewPage } from './pages/admin/resources/ResourceReviewPage';
+import { ResourcesPage } from './pages/teacher/content/ResourcesPage';
 import { ClassOverviewPage } from './pages/teacher/ClassOverviewPage';
 import { MyClassesPage } from './pages/teacher/MyClassesPage';
 import { RolesPage } from './pages/admin/RolesPage';
@@ -101,6 +104,20 @@ function SectionDetailsRoute(): ReactElement {
 function CalendarRoute(): ReactElement {
   const termId = calendarRoute.useSearch({ select: (search: CalendarSearch) => search.term });
   return <CalendarPage termId={termId} />;
+}
+
+function ResourcesRoute(): ReactElement {
+  const courseId = resourcesRoute.useParams({
+    select: (params: { courseId: string }) => params.courseId,
+  });
+  return <ResourcesPage key={courseId} courseId={courseId} />;
+}
+
+function ResourceReviewRoute(): ReactElement {
+  const resourceId = resourceReviewRoute.useParams({
+    select: (params: { resourceId: string }) => params.resourceId,
+  });
+  return <ResourceReviewPage key={resourceId} resourceId={resourceId} />;
 }
 
 function ClassOverviewRoute(): ReactElement {
@@ -260,6 +277,27 @@ const calendarRoute = createRoute({
   component: CalendarRoute,
 });
 
+const resourcesRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/content/$courseId/resources',
+  beforeLoad: requireRole('teacher'),
+  component: ResourcesRoute,
+});
+
+const resourceLibraryRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/courses/resources',
+  beforeLoad: requireRole('admin'),
+  component: ResourceLibraryPage,
+});
+
+const resourceReviewRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/courses/resources/$resourceId',
+  beforeLoad: requireRole('admin'),
+  component: ResourceReviewRoute,
+});
+
 const classOverviewRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/classes/$sectionId',
@@ -293,6 +331,9 @@ const extraSignedInRoutes = [
   sectionDetailsRoute,
   classOverviewRoute,
   calendarRoute,
+  resourcesRoute,
+  resourceLibraryRoute,
+  resourceReviewRoute,
   courseOutlineRoute,
   moduleEditorRoute,
   lessonEditorRoute,

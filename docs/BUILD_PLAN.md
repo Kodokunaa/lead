@@ -156,7 +156,13 @@ Slice 2d (academic calendar A08, class overview T03) — done:
 - A08 page at `/admin/courses/calendar?term=…` (linked from the Terms tab, under Course Management as in the wireframe): Academic structure (term dates, offerings count), Grading periods (editable rows), Calendar table (term start, events, term end).
 - T03 class overview replaces the bare class list: course details, the current grading period and upcoming events (Manila date), the course's objectives and modules, and the class list. Teachers see an event's scope only as far as their own course.
 
-Next: resources with approval (T07, A10, A11) and the student views S03–S06.
+Slice 2e (course resources with approval: T07, A10, A11) — done:
+
+- Teachers of a course this term upload a file (PDF, PNG/JPEG, Word, PowerPoint, Excel, text; up to 20 MB; the type comes from the extension and is checked against the file's first bytes) or submit a web link (http/https, no user name in it), mapped to a module and objectives. Files are stored under random names on local disk (MinIO later) and served only as downloads (attachment, nosniff, no-store) to the course's teachers and administrators.
+- Every resource keeps all its versions: pending, approved, returned for revision, withdrawn or superseded. At most one pending and one approved version (database indexes), and new versions and reviews lock the resource row (a test forces two submissions at once and fails without the lock). Approving needs both reviewer checks; returning needs a note; withdrawing needs a reason. Everything is audited; refused uploads leave no file behind; uploads are limited to 10 a minute per address.
+- Screens: T07 resources page (upload form, list with status and reviewer notes, new version), A10 resource library (search, status filter, RAG status shown as "not indexed yet" until Phase 6), A11 review page (details, versions, approve/return/withdraw).
+
+Next: the student views S03–S06.
 
 ## Seed data
 

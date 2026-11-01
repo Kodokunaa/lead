@@ -20,6 +20,7 @@ import {
   AUDIT_OUTCOMES,
   CALENDAR_EVENT_KINDS,
   CONTENT_STATUSES,
+  RESOURCE_STATUSES,
   ENROLLMENT_STATUSES,
   ROLES,
   SEMESTERS,
@@ -446,6 +447,92 @@ export const calendarEventCourses = pgTable(
 );
 
 export type CalendarEventRow = typeof calendarEvents.$inferSelect;
+
+/** A course resource (wireframes T07, A10, A11); its content lives in its versions. */
+export const resources = pgTable(
+  'resources',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'restrict' }),
+    moduleId: uuid('module_id').references(() => courseModules.id, { onDelete: 'restrict' }),
+    title: text('title').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('resources_course_idx').on(table.courseId)],
+);
+
+export const resourceObjectives = pgTable(
+  'resource_objectives',
+  {
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => resources.id, { onDelete: 'cascade' }),
+    objectiveId: uuid('objective_id')
+      .notNull()
+      .references(() => learningObjectives.id, { onDelete: 'restrict' }),
+  },
+  (table) => [primaryKey({ columns: [table.resourceId, table.objectiveId] })],
+);
+
+export const resourceStatusEnum = pgEnum('resource_status', RESOURCE_STATUSES);
+
+/**
+ * One submitted version: an uploaded file (stored under a random name) or a web link. Partial
+ * unique indexes keep at most one pending and one approved version per resource.
+ */
+export const resourceVersions = pgTable(
+  'resource_versions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => resources.id, { onDelete: 'restrict' }),
+    number: integer('number').notNull(),
+    /** Original file name, cleaned; shown to people, never used as a path. */
+    fileName: text('file_name'),
+    /** Random name on disk. */
+    storedName: text('stored_name'),
+    contentType: text('content_type'),
+    sizeBytes: integer('size_bytes'),
+    sha256: text('sha256'),
+    url: text('url'),
+    status: resourceStatusEnum('status').notNull().default('pending'),
+    submittedBy: uuid('submitted_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'restrict' }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    note: text('note'),
+  },
+  (table) => [
+    uniqueIndex('resource_versions_number_idx').on(table.resourceId, table.number),
+    uniqueIndex('resource_versions_one_pending_idx')
+      .on(table.resourceId)
+      .where(sql`${table.status} = 'pending'`),
+    uniqueIndex('resource_versions_one_approved_idx')
+      .on(table.resourceId)
+      .where(sql`${table.status} = 'approved'`),
+    // A version is either a stored file or a link, never both or neither.
+    check(
+      'resource_versions_kind_check',
+      sql`(${table.storedName} is not null and ${table.url} is null) or (${table.storedName} is null and ${table.url} is not null)`,
+    ),
+  ],
+);
+
+export type ResourceRow = typeof resources.$inferSelect;
+export type ResourceVersionRow = typeof resourceVersions.$inferSelect;
 export type LessonRow = typeof lessons.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
