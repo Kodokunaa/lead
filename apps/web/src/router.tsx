@@ -29,6 +29,7 @@ import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/Cour
 import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
 import { ModuleEditorPage } from './pages/teacher/content/ModuleEditorPage';
 import { CalendarPage } from './pages/admin/calendar/CalendarPage';
+import { SearchPage } from './pages/SearchPage';
 import { ResourceLibraryPage } from './pages/admin/resources/ResourceLibraryPage';
 import { ResourceReviewPage } from './pages/admin/resources/ResourceReviewPage';
 import { ResourcesPage } from './pages/teacher/content/ResourcesPage';
@@ -394,18 +395,40 @@ const extraSignedInRoutes = [
   }),
 ];
 
-const sharedRoutes = (Object.keys(SHARED_ROUTES) as (keyof typeof SHARED_ROUTES)[]).map((key) =>
-  createRoute({
-    getParentRoute: () => signedInRoute,
-    path: SHARED_ROUTES[key].path,
-    component:
-      key === 'security'
-        ? withUser(SecurityPage)
-        : key === 'profile'
-          ? withUser(ProfilePage)
-          : () => <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />,
-  }),
-);
+interface SearchParams {
+  readonly q?: string;
+}
+
+function SearchRoute(): ReactElement {
+  const q = searchRoute.useSearch({ select: (search: SearchParams) => search.q ?? '' });
+  return <SearchPage q={q} />;
+}
+
+/** H09: the query is a search parameter (?q=…) so a search can be bookmarked or shared. */
+const searchRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: SHARED_ROUTES.search.path,
+  validateSearch: (search: Record<string, unknown>): SearchParams =>
+    typeof search.q === 'string' && search.q ? { q: search.q.slice(0, 100) } : {},
+  component: SearchRoute,
+});
+
+const sharedRoutes = (Object.keys(SHARED_ROUTES) as (keyof typeof SHARED_ROUTES)[])
+  .filter((key) => key !== 'search')
+  .map((key) =>
+    createRoute({
+      getParentRoute: () => signedInRoute,
+      path: SHARED_ROUTES[key].path,
+      component:
+        key === 'security'
+          ? withUser(SecurityPage)
+          : key === 'profile'
+            ? withUser(ProfilePage)
+            : () => (
+                <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />
+              ),
+    }),
+  );
 
 const routeTree = rootRoute.addChildren([
   signInRoute,
@@ -414,6 +437,7 @@ const routeTree = rootRoute.addChildren([
     ...ROLES.flatMap(roleRoutes),
     ...extraSignedInRoutes,
     ...sharedRoutes,
+    searchRoute,
   ]),
 ]);
 

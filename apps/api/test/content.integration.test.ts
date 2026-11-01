@@ -1,17 +1,11 @@
-import type {
-  Course,
-  CourseContent,
-  Lesson,
-  SectionSummary,
-  TeacherCourse,
-  Term,
-} from '@lead/schema';
+import type { Course, CourseContent, Lesson, SectionSummary, TeacherCourse } from '@lead/schema';
 import { createHash, randomInt } from 'node:crypto';
 import type { Sql } from 'postgres';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQL_CLIENT } from '../src/database/database.module';
 import { createTestApp, type TestApp } from './test-app';
+import { createTestTerm } from './test-terms';
 import { createUser, TEST_PASSWORD } from './test-users';
 
 describe('course content (integration)', () => {
@@ -103,18 +97,7 @@ describe('course content (integration)', () => {
     teacherToken = await tokenFor(teacherEmail);
 
     // A current term of its own; test files run one at a time, so nothing else moves it meanwhile.
-    const start = randomInt(2200, 9000);
-    const term = (
-      await call('post', '/admin/terms', adminToken)
-        .send({
-          schoolYear: `${start}-${start + 1}`,
-          semester: 'first',
-          startsOn: `${start}-08-10`,
-          endsOn: `${start}-12-18`,
-        })
-        .expect(201)
-    ).body as Term;
-    await call('post', `/admin/terms/${term.id}/make-current`, adminToken).expect(200);
+    await createTestTerm(server(), adminToken, { current: true });
     course = await newCourse();
   });
 

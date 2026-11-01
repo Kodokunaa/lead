@@ -16,6 +16,7 @@ import { LearningModule } from './learning/learning.module';
 import { MailModule } from './mail/mail.module';
 import { MeModule } from './me/me.module';
 import { ResourcesModule } from './resources/resources.module';
+import { SearchModule } from './search/search.module';
 
 /**
  * Default per-IP request budget, sized for a classroom behind one shared campus IP.
@@ -38,6 +39,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     CalendarModule,
     ResourcesModule,
     LearningModule,
+    SearchModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

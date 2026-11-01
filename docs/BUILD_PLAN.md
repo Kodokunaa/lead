@@ -169,7 +169,12 @@ Slice 2f (student views S03, S05, S06) — done:
 - Each page's heading takes focus when it loads; loading and error states keep a heading and a way back.
 - S04 (adaptive pathway: locks, recommendations, mastery evidence) needs progress data and moves to Phase 4.
 
-Next: permission-scoped search H09, the A06 course offering record, route-level code splitting, then Phase 3 (assessments).
+H09 permission-scoped search — done:
+
+- One search box (top bar or `/search?q=`) for every role, finding only what that person may open: students their classes, published lessons (by title or text) and approved resources; teachers their current-term classes and those courses' modules, lessons and resources (drafts included, archived courses left out); administrators accounts, courses, sections and resources. Each result says where it sits and why it is visible, and opens the right screen.
+- Wildcards are searched as plain text, at most 10 results per kind (with a note when there are more), 30 searches a minute per address.
+
+Next: the A06 course offering record, route-level code splitting, then Phase 3 (assessments).
 
 ## Seed data
 

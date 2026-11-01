@@ -12,6 +12,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQL_CLIENT } from '../src/database/database.module';
 import { createTestApp, type TestApp } from './test-app';
+import { createTestTerm } from './test-terms';
 import { createUser, TEST_PASSWORD } from './test-users';
 
 describe('sections and enrollment (integration)', () => {
@@ -73,17 +74,7 @@ describe('sections and enrollment (integration)', () => {
         })
         .expect(201)
     ).body as Course;
-    const start = randomInt(2200, 9000);
-    term = (
-      await call('post', '/admin/terms')
-        .send({
-          schoolYear: `${start}-${start + 1}`,
-          semester: 'first',
-          startsOn: `${start}-08-10`,
-          endsOn: `${start}-12-18`,
-        })
-        .expect(201)
-    ).body as Term;
+    term = await createTestTerm(server(), adminToken);
   });
 
   afterAll(async () => {

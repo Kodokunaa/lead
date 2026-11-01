@@ -102,6 +102,7 @@ Migrations `apps/api/drizzle/0000`–`0013` (never edit a pushed migration; add 
 | Calendar (`@Roles('admin')`)         | `GET /admin/terms/:termId/calendar` (term, grading periods, events, offerings), `PATCH /admin/terms/:termId` (start/end dates; refused while a period or event would fall outside), `PUT …/grading-periods` (whole list), `POST …/events`, `PUT …/events/:id`, `POST …/events/:id/remove`. Every change locks the term row                                                                                                                                                                                                                                                       |
 | Resources                            | Teacher (`@Roles('teacher')`): `GET/POST /teacher/content/:courseId/resources` (multipart: title, moduleId, objectiveIds, and `file` or `url`), `POST …/:resourceId/versions`, `GET …/:resourceId/versions/:versionId/file`. Admin: `GET /admin/resources?q&status&page`, `GET /admin/resources/:id`, `POST …/versions/:versionId/{approve (confirmSource+confirmPermissions), return (note), withdraw (reason)}`, `GET …/file`. Uploads: 20 MB, PDF/PNG/JPEG/DOCX/PPTX/XLSX/TXT checked by magic bytes, `UPLOADS_PER_MINUTE` (default 10); downloads are `attachment` + nosniff |
 | Learning (`@Roles('student')`)       | `GET /student/classes/:sectionId` (S03: class, objectives taught by published modules, published modules with published lessons, approved resources, class calendar), `GET …/lessons/:lessonId` (S05, published only), `GET …/resources/:resourceId` and `…/file` (S06, approved version only, and only if its module is published or it is course-wide). Enrolled (not dropped) students only; anything else is 404                                                                                                                                                             |
+| Search (any role)                    | `GET /search?q=` (2–100 characters, 30 a minute): students their enrolled classes, published lessons (title or text) and approved resources; teachers their current-term classes and those courses' modules, lessons and resources in any state; admins accounts, courses, sections, resources. 10 per type, `truncated` flag; each result names the screen it opens (`target`)                                                                                                                                                                                                  |
 | Classes                              | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only), `GET /teacher/classes/:id/calendar` (term-wide events and the class's course only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                                                                                                                                                                   |
 | Admin (`@Roles('admin')`)            | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes                                                                                                                                                                                                                                                   |
 
@@ -134,7 +135,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   Student views S03 course overview, S05 lesson, S06 resource (`pages/student/CoursePages.tsx`,
   `/student/courses/$sectionId[/lessons/$lessonId | /resources/$resourceId]`; S02 cards link there; each page's h1
   takes focus when it loads; lesson text is rendered as text with `whitespace-pre-wrap`). `Upcoming` events list is
-  shared in `pages/calendar/Upcoming.tsx`.
+  shared in `pages/calendar/Upcoming.tsx`. H09 search (`pages/SearchPage.tsx`, `/search?q=`; the top bar search box
+  submits there).
   `useApiData` keeps the last good data when a reload of the same path fails (`refreshError`).
 - **Design** (decided by the user — keep it): wireframes decide each screen's elements and layout; look = white
   background only (no dark mode), accent `#f97316`, Poppins (self-hosted `@fontsource/poppins`), CCC seal
@@ -152,9 +154,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
 - **Phase 2** in progress: slices 2a (course catalog, A05), 2b (sections, teaching assignments, enrollment; A07,
   T02, S02), 2c (course content: objectives, modules, lessons; T04–T06) and 2d (academic calendar A08, class
-  overview T03), 2e (resources with approval: T07, A10, A11) and 2f (student views S03, S05, S06) done. Remaining in
-  Phase 2: A06 course offering record, H09 search; S04 adaptive pathway belongs with Phase 4.
-- Test counts after slice 2f: API 137, web 127, schema 50, tokens 5. Check `git log` for the latest commit.
+  overview T03), 2e (resources with approval: T07, A10, A11), 2f (student views S03, S05, S06) and H09 search done.
+  Remaining in Phase 2: A06 course offering record; S04 adaptive pathway belongs with Phase 4.
+- Test counts after H09: API 141, web 131, schema 50, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -183,9 +185,14 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   a current term First Semester 2026-2027 and section IS 301 · BSIS 3-A (capacity 3). Secrets live only in `.env`
   (gitignored) — never print or commit them. Sessions may not read `.env` values directly; create throwaway accounts
   through register → outbox link → approve instead (a script reading `.env` itself is fine).
-- Integration tests that download a file must read the whole body (`.buffer(true).parse(...)`): an unread download
-  kept the file open and the Vitest worker aborted on Windows (exit code 0xC0000409). The API also destroys the file
-  stream when a response closes early. API `hookTimeout` is 30 s for heavy setups under the parallel `pnpm test`.
+- **Intermittent Windows test crash**: a Vitest worker in the API tests sometimes aborts with exit code 0xC0000409
+  (a native abort, cause not found; `@node-rs/argon2` is the main native code involved). It happens under CPU load:
+  often with `isolate: false`, sometimes when the API tests ran alongside the web tests, not in 6 runs of the API
+  tests alone. `pnpm test` therefore runs packages one at a time (`turbo run test --concurrency=1`); CI is Linux and
+  unaffected. If it appears, rerun before suspecting the code. Tests still read download bodies fully, the API
+  destroys a file stream when a response closes early, and API `hookTimeout` is 30 s.
+- Test terms come from `test/test-terms.ts` (`createTestTerm`), which retries when a random school year is already
+  taken: the test database keeps rows between runs.
 - Windows tooling: Python edits write CRLF (run Prettier; `.gitattributes` normalizes); long bash heredocs with
   backslashes or quotes sometimes fail to parse — put scripts in a file instead.
 
@@ -220,8 +227,10 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    (confirmed by the user, 2026-11-02). S04 "modules and adaptive pathway" needs progress data (Phase 4).
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects
    them) once programs exist — confirm the student ID format with the user.
-   e. **Next:** permission-scoped search H09 (there is content now), A06 course offering record, and route-level code
-   splitting (bundle ~659 KB). Then Phase 3 (assessments).
+   e. Done: H09 permission-scoped search. Lesson text is matched with ILIKE (no index): add a `pg_trgm` index if it
+   gets slow. When Phase 4 locks modules (requires-previous, mastery), hide locked lessons from search as well.
+   f. **Next:** A06 course offering record and route-level code splitting (bundle ~660 KB). Then Phase 3
+   (assessments).
 2. Before Phase 6: get Docker working or install pgvector on the local Postgres.
 3. Phase 7 items already recorded: SMTP mailer, session/token cleanup job, deployment headers, `log_statement` off
    while migrations set the role password.

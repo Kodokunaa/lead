@@ -72,7 +72,11 @@ export function AppShell({ role, children }: AppShellProps) {
               className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface-muted px-4 py-2 transition-all duration-300 focus-within:border-brand focus-within:bg-surface focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.15)] md:max-w-xl"
               onSubmit={(event) => {
                 event.preventDefault();
-                void navigate({ to: SHARED_ROUTES.search.path });
+                const value = new FormData(event.currentTarget).get('q');
+                void navigate({
+                  to: '/search',
+                  search: { q: typeof value === 'string' ? value.trim() : '' },
+                });
               }}
             >
               <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -81,7 +85,9 @@ export function AppShell({ role, children }: AppShellProps) {
               </label>
               <input
                 id="global-search"
+                name="q"
                 type="search"
+                maxLength={100}
                 placeholder="Search courses, resources or records…"
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />

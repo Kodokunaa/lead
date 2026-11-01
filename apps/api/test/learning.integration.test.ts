@@ -7,7 +7,6 @@ import type {
   StudentClassOverview,
   StudentLesson,
   StudentResourceView,
-  Term,
 } from '@lead/schema';
 import { randomInt } from 'node:crypto';
 import type { Sql } from 'postgres';
@@ -15,6 +14,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQL_CLIENT } from '../src/database/database.module';
 import { createTestApp, type TestApp } from './test-app';
+import { createTestTerm } from './test-terms';
 import { createUser, TEST_PASSWORD } from './test-users';
 
 const PDF = Buffer.from('%PDF-1.4\n%%EOF\n');
@@ -64,18 +64,7 @@ describe('student course views (integration)', () => {
     studentEmail = await createUser(sql);
     studentToken = await tokenFor(studentEmail);
 
-    const start = randomInt(2200, 9000);
-    const term = (
-      await post('/admin/terms', adminToken)
-        .send({
-          schoolYear: `${start}-${start + 1}`,
-          semester: 'first',
-          startsOn: `${start}-08-10`,
-          endsOn: `${start}-12-18`,
-        })
-        .expect(201)
-    ).body as Term;
-    await post(`/admin/terms/${term.id}/make-current`, adminToken).expect(200);
+    const term = await createTestTerm(server(), adminToken, { current: true });
     course = (
       await post('/admin/courses', adminToken)
         .send({

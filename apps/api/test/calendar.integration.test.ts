@@ -1,10 +1,11 @@
-import type { ClassCalendar, Course, SectionSummary, Term, TermCalendar } from '@lead/schema';
+import type { ClassCalendar, Course, SectionSummary, TermCalendar } from '@lead/schema';
 import { randomInt } from 'node:crypto';
 import type { Sql } from 'postgres';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQL_CLIENT } from '../src/database/database.module';
 import { createTestApp, type TestApp } from './test-app';
+import { createTestTerm, type TestTerm } from './test-terms';
 import { createUser, TEST_PASSWORD } from './test-users';
 
 describe('academic calendar (integration)', () => {
@@ -34,20 +35,9 @@ describe('academic calendar (integration)', () => {
     return req.set('Authorization', `Bearer ${token}`);
   };
 
-  /** A fresh term from Aug 10 to Dec 18 of a random year, so tests never share one. */
-  async function newTerm(): Promise<Term & { year: number }> {
-    const year = randomInt(2200, 9000);
-    const term = (
-      await call('post', '/admin/terms')
-        .send({
-          schoolYear: `${year}-${year + 1}`,
-          semester: 'first',
-          startsOn: `${year}-08-10`,
-          endsOn: `${year}-12-18`,
-        })
-        .expect(201)
-    ).body as Term;
-    return { ...term, year };
+  /** A fresh term from Aug 10 to Dec 18 of an unused year, so tests never share one. */
+  function newTerm(): Promise<TestTerm> {
+    return createTestTerm(server(), adminToken);
   }
 
   async function newCourse(): Promise<Course> {
