@@ -17,6 +17,10 @@ import { ForgotPasswordPage, RegisterPage, TokenPasswordPage } from './pages/aut
 import { SignInPage } from './pages/auth/SignInPage';
 import { AccessDeniedPage } from './pages/AccessDeniedPage';
 import { CatalogPage } from './pages/admin/catalog/CatalogPage';
+import { SectionDetailsPage } from './pages/admin/sections/SectionDetailsPage';
+import { SectionsPage } from './pages/admin/sections/SectionsPage';
+import { MyCoursesPage } from './pages/student/MyCoursesPage';
+import { ClassRosterPage, MyClassesPage } from './pages/teacher/MyClassesPage';
 import { RolesPage } from './pages/admin/RolesPage';
 import { UserDetailsPage } from './pages/admin/UserDetailsPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -82,6 +86,20 @@ function UserDetailsRoute(): ReactElement | null {
   return <UserDetailsPage key={userId} userId={userId} currentUserId={session.user.id} />;
 }
 
+function SectionDetailsRoute(): ReactElement {
+  const sectionId = sectionDetailsRoute.useParams({
+    select: (params: { sectionId: string }) => params.sectionId,
+  });
+  return <SectionDetailsPage key={sectionId} sectionId={sectionId} />;
+}
+
+function ClassRosterRoute(): ReactElement {
+  const sectionId = classRosterRoute.useParams({
+    select: (params: { sectionId: string }) => params.sectionId,
+  });
+  return <ClassRosterPage key={sectionId} sectionId={sectionId} />;
+}
+
 function AccessDeniedRoute() {
   const session = useSession();
   return session.status === 'signed-in' ? <AccessDeniedPage role={session.user.role} /> : null;
@@ -92,6 +110,9 @@ const BUILT_PAGES: Readonly<Partial<Record<string, () => ReactElement>>> = {
   '/admin/users': UsersPage,
   '/admin/roles': RolesPage,
   '/admin/courses': CatalogPage,
+  '/admin/sections': SectionsPage,
+  '/teacher/classes': MyClassesPage,
+  '/student/courses': MyCoursesPage,
 };
 
 /** Pages opened from emailed links read their token from the URL fragment. */
@@ -183,8 +204,24 @@ const userDetailsRoute = createRoute({
   component: UserDetailsRoute,
 });
 
+const sectionDetailsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/sections/$sectionId',
+  beforeLoad: requireRole('admin'),
+  component: SectionDetailsRoute,
+});
+
+const classRosterRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/classes/$sectionId',
+  beforeLoad: requireRole('teacher'),
+  component: ClassRosterRoute,
+});
+
 const extraSignedInRoutes = [
   userDetailsRoute,
+  sectionDetailsRoute,
+  classRosterRoute,
   createRoute({
     getParentRoute: () => signedInRoute,
     path: '/access-denied',

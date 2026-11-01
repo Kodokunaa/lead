@@ -132,7 +132,16 @@ Slice 2a (course catalog, A05) — done:
 - Admin API under `/api/admin/{programs,terms,courses}`: add/edit, deactivate programs, make a term current, archive courses (reason required) and restore. Edits change only the fields sent and record nothing when nothing differs; duplicate codes answer 409; a course cannot be placed under a program that is no longer offered (row lock against a concurrent deactivation).
 - A05 Course Management screen: Courses, Programs and Terms tabs with shadcn dialogs; Add/Edit wait for the program list; archive/restore announce the result and take focus; an emptied last page steps back.
 
-Next: slice 2b — sections (course + term + name, capacity), teaching assignments and enrollment (A07 Section Management), and the class lists for teachers (T02) and students (S02).
+Slice 2b (sections and enrollment: A07, T02, S02) — done:
+
+- Sections (a course + a term + a name such as "BSIS 3-A", capacity 1–200; names unique per course and term), teaching assignments (active teacher accounts only) and enrollments (enrolled or dropped; a dropped row is kept for the record and can be enrolled again).
+- Admin API under `/api/admin/sections`: list a term (the current one by default) with search and paging, details with the class list, add/edit (capacity never below the students enrolled), assign/remove teachers, bulk enroll up to 100 emails (each skipped email says why: no account, not a student, not active, already enrolled, section full) and drop with a reason. Every change is audited in the same transaction.
+- Concurrency: enrollment, edit and drop lock the section row, so two enrollments cannot overfill it; enrollment and assignment take a shared lock on the accounts, so a student or teacher being deactivated at the same moment is refused; a section cannot be added to a course being archived. Tests force each overlap.
+- Teacher API `/api/teacher/classes` (own classes only; another section answers 404, the same as a missing one; the class list shows enrolled students only). Student API `/api/student/classes` (own enrolled classes, newest term first, without seat counts).
+- Screens: A07 Section Management (term filter, search, add, seats bar) and section details (seats, teachers, enroll, drop with reason, edit); T02 My Classes (class cards, read-only class list); S02 My Courses (cards grouped by term, current term first).
+- Not done yet: archiving a course does not yet warn about its sections; the student ID and program on registration (item d below) are still open.
+
+Next: slice 2c — calendar (A06/A08), modules, lessons and learning objectives for teachers (T03–T07).
 
 ## Seed data
 

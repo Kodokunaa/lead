@@ -18,12 +18,15 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '../../../auth/session';
 import { useApiData } from '../../../auth/use-api';
-import { errorMessage, field, FormMessage, TextField } from '../../../components/form';
+import {
+  errorMessage,
+  field,
+  FormMessage,
+  SELECT_CLASS,
+  TextField,
+} from '../../../components/form';
 import { countOf } from '../../../components/format';
-import { FormDialog } from './FormDialog';
-
-export const SELECT_CLASS =
-  'h-11 w-full rounded-xl border border-input bg-background px-4 text-sm shadow-xs transition-[color,box-shadow] focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:outline-none';
+import { FormDialog } from '../../../components/FormDialog';
 
 function listPath(q: string, program: string, archived: boolean, page: number): string {
   const params = new URLSearchParams();

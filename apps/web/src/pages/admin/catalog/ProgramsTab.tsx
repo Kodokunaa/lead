@@ -16,7 +16,7 @@ import {
 import { useAuth } from '../../../auth/session';
 import { useApiData } from '../../../auth/use-api';
 import { errorMessage, field, FormMessage, TextField } from '../../../components/form';
-import { FormDialog } from './FormDialog';
+import { FormDialog } from '../../../components/FormDialog';
 
 /** CCC's degree programs. Deactivating one stops new courses going under it. */
 export function ProgramsTab() {

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -10,10 +11,18 @@ import {
   pgTable,
   text,
   timestamp,
+  primaryKey,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { ACCOUNT_STATUSES, AUDIT_OUTCOMES, ROLES, SEMESTERS, type AuditAction } from '@lead/schema';
+import {
+  ACCOUNT_STATUSES,
+  AUDIT_OUTCOMES,
+  ENROLLMENT_STATUSES,
+  ROLES,
+  SEMESTERS,
+  type AuditAction,
+} from '@lead/schema';
 
 export const roleEnum = pgEnum('role', ROLES);
 export const auditOutcomeEnum = pgEnum('audit_outcome', AUDIT_OUTCOMES);
@@ -188,6 +197,80 @@ export const courses = pgTable(
     index('courses_program_idx').on(table.programId),
   ],
 );
+
+export const enrollmentStatusEnum = pgEnum('enrollment_status', ENROLLMENT_STATUSES);
+
+/** A class: one course taught in one term, e.g. IS 301 · BSIS 3-A · First Semester 2026-2027. */
+export const classSections = pgTable(
+  'sections',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'restrict' }),
+    termId: uuid('term_id')
+      .notNull()
+      .references(() => academicTerms.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    capacity: integer('capacity').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('sections_course_term_name_idx').on(
+      table.courseId,
+      table.termId,
+      sql`lower(${table.name})`,
+    ),
+    index('sections_term_idx').on(table.termId),
+    check('sections_capacity_check', sql`${table.capacity} between 1 and 200`),
+  ],
+);
+
+/** Which teachers run which sections. */
+export const teachingAssignments = pgTable(
+  'teaching_assignments',
+  {
+    sectionId: uuid('section_id')
+      .notNull()
+      .references(() => classSections.id, { onDelete: 'cascade' }),
+    teacherId: uuid('teacher_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sectionId, table.teacherId] }),
+    index('teaching_assignments_teacher_idx').on(table.teacherId),
+  ],
+);
+
+/**
+ * A student's place in a section. Dropping keeps the row (status `dropped`) so the history and
+ * any grades stay attached; re-enrolling sets it back to `enrolled`.
+ */
+export const enrollments = pgTable(
+  'enrollments',
+  {
+    sectionId: uuid('section_id')
+      .notNull()
+      .references(() => classSections.id, { onDelete: 'restrict' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    status: enrollmentStatusEnum('status').notNull().default('enrolled'),
+    enrolledAt: timestamp('enrolled_at', { withTimezone: true }).notNull().defaultNow(),
+    droppedAt: timestamp('dropped_at', { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sectionId, table.studentId] }),
+    index('enrollments_student_idx').on(table.studentId),
+  ],
+);
+
+export type SectionRow = typeof classSections.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
 export type TermRow = typeof academicTerms.$inferSelect;

@@ -22,6 +22,7 @@ export const REASON_REQUIRED_ACTIONS = [
   'account.reactivated',
   'account.mfa_reset',
   'course.archived',
+  'enrollment.dropped',
 ] as const;
 
 /**
@@ -56,6 +57,11 @@ export const KNOWN_ACTIONS = [
   'course.created',
   'course.updated',
   'course.restored',
+  'section.created',
+  'section.updated',
+  'teacher.assigned',
+  'teacher.unassigned',
+  'enrollment.added',
   'intervention.assigned',
   'backup.completed',
 ] as const;

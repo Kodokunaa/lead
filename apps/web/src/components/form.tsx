@@ -15,6 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '../auth/api';
 
+/** Native select styled like the shadcn Input (keeps native keyboard and screen-reader support). */
+export const SELECT_CLASS =
+  'h-11 w-full rounded-xl border border-input bg-background px-4 text-sm shadow-xs transition-[color,box-shadow] focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:outline-none';
+
 interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   readonly label: string;
   readonly hint?: string;

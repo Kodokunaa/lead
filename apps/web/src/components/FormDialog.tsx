@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { FormMessage, SubmitButton, useFormAction } from '../../../components/form';
+import { FormMessage, SubmitButton, useFormAction } from './form';
 
 interface FormDialogProps {
   /** Text of the button that opens the dialog. */

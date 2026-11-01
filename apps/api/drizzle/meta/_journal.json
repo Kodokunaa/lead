@@ -64,6 +64,13 @@
       "when": 1793504081138,
       "tag": "0008_seed_ccc_programs",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793517439684,
+      "tag": "0009_sections_and_enrollment",
+      "breakpoints": true
     }
   ]
 }

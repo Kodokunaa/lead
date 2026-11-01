@@ -1,3 +1,5 @@
+import { SEMESTER_LABELS, type Semester } from '@lead/schema';
+
 const DATE_TIME = new Intl.DateTimeFormat('en-PH', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -70,4 +72,9 @@ export function describeAction(action: string): string {
 /** "1 course", "2 courses". */
 export function countOf(total: number, noun: string): string {
   return `${total} ${noun}${total === 1 ? '' : 's'}`;
+}
+
+/** "First Semester 2026-2027". */
+export function termName(term: { semester: Semester; schoolYear: string }): string {
+  return `${SEMESTER_LABELS[term.semester]} ${term.schoolYear}`;
 }

@@ -16,9 +16,14 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '../../../auth/session';
 import { useApiData } from '../../../auth/use-api';
-import { errorMessage, field, FormMessage, TextField } from '../../../components/form';
-import { SELECT_CLASS } from './CoursesTab';
-import { FormDialog } from './FormDialog';
+import {
+  errorMessage,
+  field,
+  FormMessage,
+  SELECT_CLASS,
+  TextField,
+} from '../../../components/form';
+import { FormDialog } from '../../../components/FormDialog';
 
 const DATE = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeZone: 'UTC' });
 
