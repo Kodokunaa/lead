@@ -18,6 +18,7 @@ import {
 import {
   ACCOUNT_STATUSES,
   AUDIT_OUTCOMES,
+  CONTENT_STATUSES,
   ENROLLMENT_STATUSES,
   ROLES,
   SEMESTERS,
@@ -271,6 +272,110 @@ export const enrollments = pgTable(
 );
 
 export type SectionRow = typeof classSections.$inferSelect;
+
+export const contentStatusEnum = pgEnum('content_status', CONTENT_STATUSES);
+
+/** What students should be able to do after a course, numbered O1, O2, … per course. */
+export const learningObjectives = pgTable(
+  'learning_objectives',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'restrict' }),
+    /** Running number within the course; the code shown is `O${number}`. */
+    number: integer('number').notNull(),
+    description: text('description').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('learning_objectives_course_number_idx').on(table.courseId, table.number),
+  ],
+);
+
+/** A unit of a course's outline (wireframes T04, T05). Shared by every section of the course. */
+export const courseModules = pgTable(
+  'course_modules',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'restrict' }),
+    position: integer('position').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    requiresPrevious: boolean('requires_previous').notNull().default(false),
+    /** Score (50–100%) that counts as mastered; null means no mastery condition. */
+    masteryThreshold: integer('mastery_threshold'),
+    status: contentStatusEnum('status').notNull().default('draft'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('course_modules_course_idx').on(table.courseId, table.position),
+    check(
+      'course_modules_mastery_check',
+      sql`${table.masteryThreshold} is null or ${table.masteryThreshold} between 50 and 100`,
+    ),
+  ],
+);
+
+/** Which objectives a module teaches. */
+export const moduleObjectives = pgTable(
+  'module_objectives',
+  {
+    moduleId: uuid('module_id')
+      .notNull()
+      .references(() => courseModules.id, { onDelete: 'cascade' }),
+    objectiveId: uuid('objective_id')
+      .notNull()
+      .references(() => learningObjectives.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.moduleId, table.objectiveId] }),
+    index('module_objectives_objective_idx').on(table.objectiveId),
+  ],
+);
+
+/** A lesson in a module (wireframe T06), mapped to one of the module's objectives. */
+export const lessons = pgTable(
+  'lessons',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    moduleId: uuid('module_id')
+      .notNull()
+      .references(() => courseModules.id, { onDelete: 'restrict' }),
+    position: integer('position').notNull(),
+    title: text('title').notNull(),
+    objectiveId: uuid('objective_id').references(() => learningObjectives.id, {
+      onDelete: 'restrict',
+    }),
+    body: text('body').notNull().default(''),
+    status: contentStatusEnum('status').notNull().default('draft'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('lessons_module_idx').on(table.moduleId, table.position),
+    // Backstop for the service's publishing rule: a published lesson has an objective and text.
+    check(
+      'lessons_publishable_check',
+      sql`${table.status} <> 'published' or (${table.objectiveId} is not null and btrim(${table.body}) <> '')`,
+    ),
+  ],
+);
+
+export type ModuleRow = typeof courseModules.$inferSelect;
+export type LessonRow = typeof lessons.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
 export type TermRow = typeof academicTerms.$inferSelect;

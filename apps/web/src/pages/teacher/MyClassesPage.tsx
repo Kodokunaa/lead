@@ -65,8 +65,17 @@ export function ClassRosterPage({ sectionId }: { sectionId: string }) {
       <p className="mt-1 text-sm text-muted-foreground">
         {section.course.title} · {termName(section.term)} · {teacherNames(section)}
       </p>
-      <div className="mt-4 max-w-sm">
-        <SeatsBar enrolled={section.enrolled} capacity={section.capacity} />
+      <div className="mt-4 flex flex-wrap items-center gap-6">
+        <div className="w-full max-w-sm">
+          <SeatsBar enrolled={section.enrolled} capacity={section.capacity} />
+        </div>
+        <Link
+          to="/teacher/content/$courseId"
+          params={{ courseId: section.course.id }}
+          className="link text-sm"
+        >
+          Course content
+        </Link>
       </div>
       <h2 className="mt-8 text-lg font-semibold">
         Class list · {countOf(enrolled.length, 'student')}

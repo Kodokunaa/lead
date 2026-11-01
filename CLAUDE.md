@@ -75,23 +75,28 @@ reference/          client documents and wireframes (gitignored, never commit)
 | `sections`             | course_id + term_id (restrict), name (unique per course and term, case-insensitive), capacity 1–200 (check). Drizzle name `classSections`                                                                                                                                                                      |
 | `teaching_assignments` | PK (section_id, teacher_id); cascade on section delete                                                                                                                                                                                                                                                         |
 | `enrollments`          | PK (section_id, student_id), status `enrolled`/`dropped`, enrolled_at, dropped_at (dropped rows kept; re-enrolling flips the same row back)                                                                                                                                                                    |
+| `learning_objectives`  | course_id, number (unique per course; shown as `O1`, `O2`…), description                                                                                                                                                                                                                                       |
+| `course_modules`       | course_id, position, title, description, requires_previous, mastery_threshold (null or 50–100), status `draft`/`published`, published_at. Content belongs to the **course** (all its sections share it), per wireframe T04                                                                                     |
+| `module_objectives`    | PK (module_id, objective_id): which objectives a module teaches                                                                                                                                                                                                                                                |
+| `lessons`              | module_id, position, title, objective_id (must be one of the module's), body (plain text ≤ 20k; render as text, never HTML), status, published_at; CHECK: published ⇒ objective set and body not blank                                                                                                         |
 
-Migrations `apps/api/drizzle/0000`–`0009` (never edit a pushed migration; add a new one with
+Migrations `apps/api/drizzle/0000`–`0011` (never edit a pushed migration; add a new one with
 `pnpm --filter @lead/api db:generate`, custom SQL via `drizzle-kit generate --custom`).
 
 ## 4. API (all under `/api`)
 
-| Area                         | Endpoints                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Health                       | `GET /health` (public)                                                                                                                                                                                                                                                                                                                       |
-| Sign-in                      | `POST /auth/sign-in` (session, or `{mfaRequired, challengeToken}`), `POST /auth/refresh`, `POST /auth/sign-out`, `GET /auth/me`                                                                                                                                                                                                              |
-| MFA                          | `POST /auth/mfa/setup`, `/enable` (password + code), `/disable` (password + code), `/verify` (public: challenge + code or recovery code)                                                                                                                                                                                                     |
-| Accounts (public)            | `POST /auth/register` (name, email, role student/teacher; no password), `/email/verify` (token + password), `/password/forgot`, `/password/reset` — email-taking ones answer 202 at once and work in the background                                                                                                                          |
-| Self                         | `GET /me/sessions`, `POST /me/sessions/:id/revoke`, `POST /me/sessions/revoke-others`, `PATCH /me/profile`, `POST /me/password`                                                                                                                                                                                                              |
-| Catalog (`@Roles('admin')`)  | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`                        |
-| Sections (`@Roles('admin')`) | `GET /admin/sections?term&q&page` (current term by default; answer carries `termId`), `GET/PATCH /admin/sections/:id`, `POST /admin/sections`, `POST /admin/sections/:id/teachers` (email), `/teachers/:teacherId/remove`, `/enrollments` (emails, up to 100; returns added + skipped with reasons), `/enrollments/:studentId/drop` (reason) |
-| Classes                      | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                   |
-| Admin (`@Roles('admin')`)    | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes               |
+| Area                                 | Endpoints                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Health                               | `GET /health` (public)                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Sign-in                              | `POST /auth/sign-in` (session, or `{mfaRequired, challengeToken}`), `POST /auth/refresh`, `POST /auth/sign-out`, `GET /auth/me`                                                                                                                                                                                                                                                                                                                                                |
+| MFA                                  | `POST /auth/mfa/setup`, `/enable` (password + code), `/disable` (password + code), `/verify` (public: challenge + code or recovery code)                                                                                                                                                                                                                                                                                                                                       |
+| Accounts (public)                    | `POST /auth/register` (name, email, role student/teacher; no password), `/email/verify` (token + password), `/password/forgot`, `/password/reset` — email-taking ones answer 202 at once and work in the background                                                                                                                                                                                                                                                            |
+| Self                                 | `GET /me/sessions`, `POST /me/sessions/:id/revoke`, `POST /me/sessions/revoke-others`, `PATCH /me/profile`, `POST /me/password`                                                                                                                                                                                                                                                                                                                                                |
+| Catalog (`@Roles('admin')`)          | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`                                                                                                                                                          |
+| Sections (`@Roles('admin')`)         | `GET /admin/sections?term&q&page` (current term by default; answer carries `termId`), `GET/PATCH /admin/sections/:id`, `POST /admin/sections`, `POST /admin/sections/:id/teachers` (email), `/teachers/:teacherId/remove`, `/enrollments` (emails, up to 100; returns added + skipped with reasons), `/enrollments/:studentId/drop` (reason)                                                                                                                                   |
+| Course content (`@Roles('teacher')`) | `GET /teacher/content` (courses taught this term), `GET /teacher/content/:courseId` (objectives + modules + lesson summaries), `POST …/objectives`, `PATCH …/objectives/:id`, `POST …/modules`, `PATCH …/modules/:id`, `POST …/modules/:id/{move,publish,unpublish}`, `POST …/modules/:id/lessons`, `GET/PATCH …/lessons/:id`, `POST …/lessons/:id/{publish,unpublish}`. Only teachers of a current-term section of the course (404 otherwise); archived courses are read-only |
+| Classes                              | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                                                                                                                                                     |
+| Admin (`@Roles('admin')`)            | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes                                                                                                                                                 |
 
 Request/response shapes live in `packages/schema/src/{auth,admin}.ts`. Development email is written as `.eml`
 files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no SMTP sender yet.
@@ -109,7 +114,10 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   the shadcn Dialog, `afterSave` moves focus to an announcement when the row disappears), A07 section management and
   section details (`pages/admin/sections/`, routes `/admin/sections` and `/admin/sections/$sectionId`), T02 My Classes
   and class list (`pages/teacher/`, `/teacher/classes/$sectionId`), S02 My Courses (`pages/student/`), shared
-  `SeatsBar`/`RosterTable`/`ClassCard` in `pages/sections/shared.tsx`, X04 access denied.
+  `SeatsBar`/`RosterTable`/`ClassCard` in `pages/sections/shared.tsx`, T04 course outline (`/teacher/content`,
+  `/teacher/content/$courseId`), T05 module editor (`…/modules/$moduleId`) and T06 lesson editor (`…/lessons/$lessonId`)
+  in `pages/teacher/content/` (Publish is refused while the form has unsaved edits), X04 access denied.
+  `useApiData` keeps the last good data when a reload of the same path fails (`refreshError`).
 - **Design** (decided by the user — keep it): wireframes decide each screen's elements and layout; look = white
   background only (no dark mode), accent `#f97316`, Poppins (self-hosted `@fontsource/poppins`), CCC seal
   (`public/ccc-logo.png`, favicon), rounded cards with soft shadows, transitions and big entrance animations
@@ -124,9 +132,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 ## 6. Status
 
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
-- **Phase 2** in progress: slices 2a (course catalog, A05) and 2b (sections, teaching assignments, enrollment; A07,
-  T02, S02) done; slice 2c next.
-- Test counts after slice 2b: API 109, web 85, schema 32, tokens 5. Check `git log` for the latest commit.
+- **Phase 2** in progress: slices 2a (course catalog, A05), 2b (sections, teaching assignments, enrollment; A07,
+  T02, S02) and 2c (course content: objectives, modules, lessons; T04–T06) done; calendar (A08) next.
+- Test counts after slice 2c: API 118, web 98, schema 41, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -142,7 +150,10 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   deployment security headers not set (CSP etc. listed in BUILD_PLAN Phase 7 checklist).
 - Dashboards (S01, T01, A01) and most role pages are placeholders. H06 notifications and H09 search not built.
 - A04 is read-only (three fixed roles; no custom permission model yet).
-- Web bundle is ~487 KB (153 KB gzip), close to Vite's 500 KB warning — add route-level code splitting as pages grow.
+- Web bundle is ~604 KB (183 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
+  splitting (`lazyRouteComponent`) soon.
+- The wireframe PDF's text can be extracted with pdf.js (`pdfjs-dist` in a scratch folder, `getTextContent()` per
+  page): page N is the Nth screen in ID order (H01–H09, S01–S19, T01–T28, A01–A19, X01–X06), e.g. page 32 = T04.
 - `ParseUUIDPipe({ version: '4' })` on admin/me routes: switching ids to UUIDv7 would break them.
 - Testing quirk: the hidden Browser preview pane pauses CSS animations, so screenshots can show content mid-fade
   (it starts at opacity 0); inject `*{animation:none!important}` via the inspection tool to check layout.
@@ -176,10 +187,13 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    BUILD_PLAN). Wireframe images for these screens have not been provided yet — ask the user. Slice by slice:
    a. Done: catalog (programs with CCC's seven seeded, academic terms, courses) and A05 Course Management.
    a2. Done: sections, teaching assignments and enrollments; A07, T02, S02.
-   b. **Next (slice 2c):** calendar (A06/A08 per plan), modules, lessons, learning objectives; teacher screens
-   T03–T07 (hang content off a section or course — decide which; teachers may only edit their own sections').
-   Open from 2b: archiving a course with live sections should warn or refuse.
-   c. Resource upload with approval workflow (local disk in dev; MinIO later) and student views S02–S03, S05–S06.
+   b. Done (slice 2c): learning objectives, modules, lessons with draft/publish rules; T04–T06.
+   b2. **Next:** A08 "Programs, terms and academic calendar" (wireframe page 64: term start/end, grading periods,
+   calendar events with scope, inline validation of conflicting dates) and T03 class overview (page 31).
+   Open: archiving a course with live sections should warn or refuse; unpublishing may need a reason once students
+   have progress (consider adding `module.unpublished`/`lesson.unpublished` to `REASON_REQUIRED_ACTIONS`).
+   c. Resource upload with approval workflow (T07, A10, A11; local disk in dev; MinIO later) and student views
+   S03–S06 (published lessons only, enrolled students only; render lesson text as text, never HTML).
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects
    them) once programs exist — confirm the student ID format with the user.
    e. Permission-scoped search H09 once there is content.

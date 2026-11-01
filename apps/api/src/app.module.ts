@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SectionsModule } from './sections/sections.module';
 import { ConfigModule } from './config/config.module';
+import { ContentModule } from './content/content.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
@@ -30,6 +31,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     MeModule,
     CatalogModule,
     SectionsModule,
+    ContentModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

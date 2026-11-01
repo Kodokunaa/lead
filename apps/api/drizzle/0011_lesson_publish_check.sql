@@ -1,0 +1,1 @@
+ALTER TABLE "lessons" ADD CONSTRAINT "lessons_publishable_check" CHECK ("lessons"."status" <> 'published' or ("lessons"."objective_id" is not null and btrim("lessons"."body") <> ''));

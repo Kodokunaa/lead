@@ -71,6 +71,20 @@
       "when": 1793517439684,
       "tag": "0009_sections_and_enrollment",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793521351297,
+      "tag": "0010_course_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793521988722,
+      "tag": "0011_lesson_publish_check",
+      "breakpoints": true
     }
   ]
 }

@@ -141,7 +141,15 @@ Slice 2b (sections and enrollment: A07, T02, S02) — done:
 - Screens: A07 Section Management (term filter, search, add, seats bar) and section details (seats, teachers, enroll, drop with reason, edit); T02 My Classes (class cards, read-only class list); S02 My Courses (cards grouped by term, current term first).
 - Not done yet: archiving a course does not yet warn about its sections; the student ID and program on registration (item d below) are still open.
 
-Next: slice 2c — calendar (A06/A08), modules, lessons and learning objectives for teachers (T03–T07).
+Slice 2c (course content: T04–T06) — done:
+
+- Content belongs to the course (wireframe T04 "Course outline and content / IS 301"), so every section follows the same outline. Learning objectives are numbered O1, O2, … per course; modules have an order, objectives, an optional "finish the previous module first" rule and an optional mastery score (50–100%); lessons belong to a module and teach one of its objectives.
+- Draft/publish: a module needs at least one objective to be published; a lesson needs one of its module's objectives and written content. While published they must stay publishable (an objective a lesson teaches cannot be taken off its module). A database CHECK backs the lesson rule.
+- Teacher API under `/api/teacher/content`. Only teachers of a current-term section of the course can see or change it (others get 404); archived courses are read-only. Every change locks the course row, so module positions and objective numbers never collide (tests force both overlaps and fail without the lock). Audit records each change; lesson text is recorded as its length and SHA-256.
+- Screens: T04 course outline (objectives, modules with their lessons, move up/down, add module/lesson), T05 module editor, T06 lesson editor with the module outline. Publish is refused while the form has unsaved edits; a failed refresh keeps the editor and says so.
+- Moved to the next slice: A08 calendar and T03 class overview. Later: resources (T07, A10, A11) and student views (S03–S06).
+
+Next: A08 programs, terms and academic calendar, and T03 class overview.
 
 ## Seed data
 

@@ -20,6 +20,9 @@ import { CatalogPage } from './pages/admin/catalog/CatalogPage';
 import { SectionDetailsPage } from './pages/admin/sections/SectionDetailsPage';
 import { SectionsPage } from './pages/admin/sections/SectionsPage';
 import { MyCoursesPage } from './pages/student/MyCoursesPage';
+import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/CourseOutlinePage';
+import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
+import { ModuleEditorPage } from './pages/teacher/content/ModuleEditorPage';
 import { ClassRosterPage, MyClassesPage } from './pages/teacher/MyClassesPage';
 import { RolesPage } from './pages/admin/RolesPage';
 import { UserDetailsPage } from './pages/admin/UserDetailsPage';
@@ -100,6 +103,27 @@ function ClassRosterRoute(): ReactElement {
   return <ClassRosterPage key={sectionId} sectionId={sectionId} />;
 }
 
+function CourseOutlineRoute(): ReactElement {
+  const courseId = courseOutlineRoute.useParams({
+    select: (params: { courseId: string }) => params.courseId,
+  });
+  return <CourseOutlinePage key={courseId} courseId={courseId} />;
+}
+
+function ModuleEditorRoute(): ReactElement {
+  const { courseId, moduleId } = moduleEditorRoute.useParams({
+    select: (params: { courseId: string; moduleId: string }) => params,
+  });
+  return <ModuleEditorPage key={moduleId} courseId={courseId} moduleId={moduleId} />;
+}
+
+function LessonEditorRoute(): ReactElement {
+  const { courseId, lessonId } = lessonEditorRoute.useParams({
+    select: (params: { courseId: string; lessonId: string }) => params,
+  });
+  return <LessonEditorPage key={lessonId} courseId={courseId} lessonId={lessonId} />;
+}
+
 function AccessDeniedRoute() {
   const session = useSession();
   return session.status === 'signed-in' ? <AccessDeniedPage role={session.user.role} /> : null;
@@ -112,6 +136,7 @@ const BUILT_PAGES: Readonly<Partial<Record<string, () => ReactElement>>> = {
   '/admin/courses': CatalogPage,
   '/admin/sections': SectionsPage,
   '/teacher/classes': MyClassesPage,
+  '/teacher/content': ContentHomePage,
   '/student/courses': MyCoursesPage,
 };
 
@@ -218,10 +243,34 @@ const classRosterRoute = createRoute({
   component: ClassRosterRoute,
 });
 
+const courseOutlineRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/content/$courseId',
+  beforeLoad: requireRole('teacher'),
+  component: CourseOutlineRoute,
+});
+
+const moduleEditorRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/content/$courseId/modules/$moduleId',
+  beforeLoad: requireRole('teacher'),
+  component: ModuleEditorRoute,
+});
+
+const lessonEditorRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/content/$courseId/lessons/$lessonId',
+  beforeLoad: requireRole('teacher'),
+  component: LessonEditorRoute,
+});
+
 const extraSignedInRoutes = [
   userDetailsRoute,
   sectionDetailsRoute,
   classRosterRoute,
+  courseOutlineRoute,
+  moduleEditorRoute,
+  lessonEditorRoute,
   createRoute({
     getParentRoute: () => signedInRoute,
     path: '/access-denied',
