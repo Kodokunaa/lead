@@ -79,6 +79,8 @@ export function sendFile(file: OpenedFile, response: Response): StreamableFile {
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'private, no-store',
   });
+  // A download the browser abandons must not leave the file open.
+  response.once('close', () => file.stream.destroy());
   return new StreamableFile(file.stream, { length: file.sizeBytes });
 }
 

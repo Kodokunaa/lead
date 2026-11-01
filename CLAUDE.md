@@ -101,6 +101,7 @@ Migrations `apps/api/drizzle/0000`–`0013` (never edit a pushed migration; add 
 | Course content (`@Roles('teacher')`) | `GET /teacher/content` (courses taught this term), `GET /teacher/content/:courseId` (objectives + modules + lesson summaries), `POST …/objectives`, `PATCH …/objectives/:id`, `POST …/modules`, `PATCH …/modules/:id`, `POST …/modules/:id/{move,publish,unpublish}`, `POST …/modules/:id/lessons`, `GET/PATCH …/lessons/:id`, `POST …/lessons/:id/{publish,unpublish}`. Only teachers of a current-term section of the course (404 otherwise); archived courses are read-only                                                                                                   |
 | Calendar (`@Roles('admin')`)         | `GET /admin/terms/:termId/calendar` (term, grading periods, events, offerings), `PATCH /admin/terms/:termId` (start/end dates; refused while a period or event would fall outside), `PUT …/grading-periods` (whole list), `POST …/events`, `PUT …/events/:id`, `POST …/events/:id/remove`. Every change locks the term row                                                                                                                                                                                                                                                       |
 | Resources                            | Teacher (`@Roles('teacher')`): `GET/POST /teacher/content/:courseId/resources` (multipart: title, moduleId, objectiveIds, and `file` or `url`), `POST …/:resourceId/versions`, `GET …/:resourceId/versions/:versionId/file`. Admin: `GET /admin/resources?q&status&page`, `GET /admin/resources/:id`, `POST …/versions/:versionId/{approve (confirmSource+confirmPermissions), return (note), withdraw (reason)}`, `GET …/file`. Uploads: 20 MB, PDF/PNG/JPEG/DOCX/PPTX/XLSX/TXT checked by magic bytes, `UPLOADS_PER_MINUTE` (default 10); downloads are `attachment` + nosniff |
+| Learning (`@Roles('student')`)       | `GET /student/classes/:sectionId` (S03: class, objectives taught by published modules, published modules with published lessons, approved resources, class calendar), `GET …/lessons/:lessonId` (S05, published only), `GET …/resources/:resourceId` and `…/file` (S06, approved version only, and only if its module is published or it is course-wide). Enrolled (not dropped) students only; anything else is 404                                                                                                                                                             |
 | Classes                              | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only), `GET /teacher/classes/:id/calendar` (term-wide events and the class's course only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                                                                                                                                                                   |
 | Admin (`@Roles('admin')`)            | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes                                                                                                                                                                                                                                                   |
 
@@ -130,6 +131,10 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   review (`pages/admin/resources/`, `/admin/courses/resources[/$resourceId]`), X04 access denied. `auth.request`
   sends a `FormData` body as multipart and takes `expect: 'blob'` for downloads (`components/download.ts`). Never put
   a `FormDialog` inside another `<form>`: React bubbles the dialog's submit through the portal into the outer form.
+  Student views S03 course overview, S05 lesson, S06 resource (`pages/student/CoursePages.tsx`,
+  `/student/courses/$sectionId[/lessons/$lessonId | /resources/$resourceId]`; S02 cards link there; each page's h1
+  takes focus when it loads; lesson text is rendered as text with `whitespace-pre-wrap`). `Upcoming` events list is
+  shared in `pages/calendar/Upcoming.tsx`.
   `useApiData` keeps the last good data when a reload of the same path fails (`refreshError`).
 - **Design** (decided by the user — keep it): wireframes decide each screen's elements and layout; look = white
   background only (no dark mode), accent `#f97316`, Poppins (self-hosted `@fontsource/poppins`), CCC seal
@@ -147,8 +152,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
 - **Phase 2** in progress: slices 2a (course catalog, A05), 2b (sections, teaching assignments, enrollment; A07,
   T02, S02), 2c (course content: objectives, modules, lessons; T04–T06) and 2d (academic calendar A08, class
-  overview T03) and 2e (resources with approval: T07, A10, A11) done; student views (S03–S06) next.
-- Test counts after slice 2e: API 133, web 122, schema 50, tokens 5. Check `git log` for the latest commit.
+  overview T03), 2e (resources with approval: T07, A10, A11) and 2f (student views S03, S05, S06) done. Remaining in
+  Phase 2: A06 course offering record, H09 search; S04 adaptive pathway belongs with Phase 4.
+- Test counts after slice 2f: API 137, web 127, schema 50, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -162,7 +168,7 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   deployment security headers not set (CSP etc. listed in BUILD_PLAN Phase 7 checklist).
 - Dashboards (S01, T01, A01) and most role pages are placeholders. H06 notifications and H09 search not built.
 - A04 is read-only (three fixed roles; no custom permission model yet).
-- Web bundle is ~647 KB (191 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
+- Web bundle is ~659 KB (193 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
   splitting (`lazyRouteComponent`) soon.
 - The wireframe PDF's text can be extracted with pdf.js (`pdfjs-dist` in a scratch folder, `getTextContent()` per
   page): page N is the Nth screen in ID order (H01–H09, S01–S19, T01–T28, A01–A19, X01–X06), e.g. page 32 = T04.
@@ -177,6 +183,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   a current term First Semester 2026-2027 and section IS 301 · BSIS 3-A (capacity 3). Secrets live only in `.env`
   (gitignored) — never print or commit them. Sessions may not read `.env` values directly; create throwaway accounts
   through register → outbox link → approve instead (a script reading `.env` itself is fine).
+- Integration tests that download a file must read the whole body (`.buffer(true).parse(...)`): an unread download
+  kept the file open and the Vitest worker aborted on Windows (exit code 0xC0000409). The API also destroys the file
+  stream when a response closes early. API `hookTimeout` is 30 s for heavy setups under the parallel `pnpm test`.
 - Windows tooling: Python edits write CRLF (run Prettier; `.gitattributes` normalizes); long bash heredocs with
   backslashes or quotes sometimes fail to parse — put scripts in a file instead.
 
@@ -207,11 +216,12 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    c. Done (slice 2e): resources with approval (T07, A10, A11). Open: OOXML files are only checked for the zip
    header (verify `[Content_Types].xml` and cap extraction before Phase 6 parses them); downloads are not audited;
    teachers of a course see each other's drafts (by design); MinIO replaces local disk for deployment.
-   c2. **Next:** student views S03–S06: enrolled students only; published modules/lessons only; approved resource
-   versions only (404 otherwise); render lesson text as text, never HTML.
+   c2. Done (slice 2f): student views S03, S05, S06. Students still see teachers' email addresses on class pages
+   (kept on purpose; confirm with the user). S04 "modules and adaptive pathway" needs progress data (Phase 4).
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects
    them) once programs exist — confirm the student ID format with the user.
-   e. Permission-scoped search H09 once there is content.
+   e. **Next:** permission-scoped search H09 (there is content now), A06 course offering record, and route-level code
+   splitting (bundle ~659 KB). Then Phase 3 (assessments).
 2. Before Phase 6: get Docker working or install pgvector on the local Postgres.
 3. Phase 7 items already recorded: SMTP mailer, session/token cleanup job, deployment headers, `log_statement` off
    while migrations set the role password.

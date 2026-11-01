@@ -19,6 +19,11 @@ import { AccessDeniedPage } from './pages/AccessDeniedPage';
 import { CatalogPage } from './pages/admin/catalog/CatalogPage';
 import { SectionDetailsPage } from './pages/admin/sections/SectionDetailsPage';
 import { SectionsPage } from './pages/admin/sections/SectionsPage';
+import {
+  StudentCoursePage,
+  StudentLessonPage,
+  StudentResourcePage,
+} from './pages/student/CoursePages';
 import { MyCoursesPage } from './pages/student/MyCoursesPage';
 import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/CourseOutlinePage';
 import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
@@ -118,6 +123,27 @@ function ResourceReviewRoute(): ReactElement {
     select: (params: { resourceId: string }) => params.resourceId,
   });
   return <ResourceReviewPage key={resourceId} resourceId={resourceId} />;
+}
+
+function StudentCourseRoute(): ReactElement {
+  const sectionId = studentCourseRoute.useParams({
+    select: (params: { sectionId: string }) => params.sectionId,
+  });
+  return <StudentCoursePage key={sectionId} sectionId={sectionId} />;
+}
+
+function StudentLessonRoute(): ReactElement {
+  const { sectionId, lessonId } = studentLessonRoute.useParams({
+    select: (params: { sectionId: string; lessonId: string }) => params,
+  });
+  return <StudentLessonPage key={lessonId} sectionId={sectionId} lessonId={lessonId} />;
+}
+
+function StudentResourceRoute(): ReactElement {
+  const { sectionId, resourceId } = studentResourceRoute.useParams({
+    select: (params: { sectionId: string; resourceId: string }) => params,
+  });
+  return <StudentResourcePage key={resourceId} sectionId={sectionId} resourceId={resourceId} />;
 }
 
 function ClassOverviewRoute(): ReactElement {
@@ -298,6 +324,27 @@ const resourceReviewRoute = createRoute({
   component: ResourceReviewRoute,
 });
 
+const studentCourseRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/courses/$sectionId',
+  beforeLoad: requireRole('student'),
+  component: StudentCourseRoute,
+});
+
+const studentLessonRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/courses/$sectionId/lessons/$lessonId',
+  beforeLoad: requireRole('student'),
+  component: StudentLessonRoute,
+});
+
+const studentResourceRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/courses/$sectionId/resources/$resourceId',
+  beforeLoad: requireRole('student'),
+  component: StudentResourceRoute,
+});
+
 const classOverviewRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/classes/$sectionId',
@@ -334,6 +381,9 @@ const extraSignedInRoutes = [
   resourcesRoute,
   resourceLibraryRoute,
   resourceReviewRoute,
+  studentCourseRoute,
+  studentLessonRoute,
+  studentResourceRoute,
   courseOutlineRoute,
   moduleEditorRoute,
   lessonEditorRoute,

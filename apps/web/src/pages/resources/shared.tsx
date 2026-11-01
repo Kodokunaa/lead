@@ -42,7 +42,7 @@ export function formatBytes(bytes: number): string {
 interface OpenVersionProps {
   /** Where the file is served, e.g. `/admin/resources/<id>/versions/<id>/file`. */
   readonly filePath: string;
-  readonly version: ResourceVersion;
+  readonly version: Pick<ResourceVersion, 'kind' | 'url' | 'fileName' | 'number'>;
   readonly label?: string;
   /** The full name for assistive technology, e.g. "Open Normalization guide". */
   readonly accessibleName?: string;
@@ -62,7 +62,10 @@ export function OpenVersion({
   const name = label ?? `Open v${version.number}`;
 
   if (version.kind === 'link') {
-    if (!version.url) return <span className="text-sm text-muted-foreground">No link</span>;
+    // The API only stores http(s) links; checked again here so a bad value can never run.
+    if (!version.url || !/^https?:\/\//i.test(version.url)) {
+      return <span className="text-sm text-muted-foreground">No link</span>;
+    }
     return (
       <a
         href={version.url}
@@ -91,7 +94,7 @@ export function OpenVersion({
           .finally(() => setBusy(false));
       }}
     >
-      <Download aria-hidden="true" /> {busy ? 'Downloading…' : name}
+      <Download aria-hidden="true" /> <span aria-live="polite">{busy ? 'Downloading…' : name}</span>
     </Button>
   );
 }

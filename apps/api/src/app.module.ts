@@ -12,6 +12,7 @@ import { ConfigModule } from './config/config.module';
 import { ContentModule } from './content/content.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
+import { LearningModule } from './learning/learning.module';
 import { MailModule } from './mail/mail.module';
 import { MeModule } from './me/me.module';
 import { ResourcesModule } from './resources/resources.module';
@@ -36,6 +37,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     ContentModule,
     CalendarModule,
     ResourcesModule,
+    LearningModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

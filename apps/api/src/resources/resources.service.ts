@@ -16,9 +16,11 @@ import {
   type ResourceSummary,
   type ResourceVersion,
   type ReturnRequest,
+  type StudentResource,
+  type StudentResourceView,
   type VersionInput,
 } from '@lead/schema';
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { ReadStream } from 'node:fs';
 import { AuditService } from '../audit/audit.service';
 import type { ClientInfo } from '../auth/auth.service';
@@ -51,6 +53,9 @@ export interface OpenedFile {
   readonly contentType: string;
   readonly sizeBytes: number;
 }
+
+/** Learners see a resource for the whole course, or one whose module is published. */
+const visibleModule = or(isNull(resources.moduleId), eq(courseModules.status, 'published'));
 
 function likePattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
@@ -299,7 +304,105 @@ export class ResourcesService {
     return this.openVersion(version);
   }
 
+  // ---------- Learners (callers check enrollment first)
+
+  /** The course's resources that have an approved version, optionally only one module's. */
+  async approvedForCourse(courseId: string, moduleId?: string): Promise<StudentResource[]> {
+    const rows = await this.db
+      .select({ resource: resources, version: resourceVersions, module: courseModules })
+      .from(resourceVersions)
+      .innerJoin(resources, eq(resources.id, resourceVersions.resourceId))
+      .leftJoin(courseModules, eq(courseModules.id, resources.moduleId))
+      .where(
+        and(
+          eq(resources.courseId, courseId),
+          eq(resourceVersions.status, 'approved'),
+          visibleModule,
+          moduleId ? eq(resources.moduleId, moduleId) : undefined,
+        ),
+      )
+      .orderBy(asc(resources.title));
+    const objectives = await this.objectivesOf(
+      this.db,
+      rows.map((row) => row.resource.id),
+    );
+    return rows.map((row) => toStudentResource(row, objectives));
+  }
+
+  async approvedResource(courseId: string, resourceId: string): Promise<StudentResourceView> {
+    const [row] = await this.db
+      .select({
+        resource: resources,
+        version: resourceVersions,
+        module: courseModules,
+        course: courses,
+      })
+      .from(resourceVersions)
+      .innerJoin(resources, eq(resources.id, resourceVersions.resourceId))
+      .innerJoin(courses, eq(courses.id, resources.courseId))
+      .leftJoin(courseModules, eq(courseModules.id, resources.moduleId))
+      .where(
+        and(
+          eq(resources.id, resourceId),
+          eq(resources.courseId, courseId),
+          eq(resourceVersions.status, 'approved'),
+          visibleModule,
+        ),
+      );
+    // Pending, returned and withdrawn material does not exist as far as learners can tell.
+    if (!row) throw new NotFoundException('No such resource.');
+    const objectives = await this.objectivesOf(this.db, [resourceId]);
+    return {
+      ...toStudentResource(row, objectives),
+      course: { code: row.course.code, title: row.course.title },
+    };
+  }
+
+  /** The approved version's file, for an enrolled learner. */
+  async approvedFile(courseId: string, resourceId: string): Promise<OpenedFile> {
+    const [version] = await this.db
+      .select({ version: resourceVersions })
+      .from(resourceVersions)
+      .innerJoin(resources, eq(resources.id, resourceVersions.resourceId))
+      .leftJoin(courseModules, eq(courseModules.id, resources.moduleId))
+      .where(
+        and(
+          eq(resources.id, resourceId),
+          eq(resources.courseId, courseId),
+          eq(resourceVersions.status, 'approved'),
+          visibleModule,
+        ),
+      );
+    if (!version) throw new NotFoundException('No such resource.');
+    return this.openVersion(version.version);
+  }
+
   // ---------- Helpers
+
+  private async objectivesOf(
+    executor: DbExecutor,
+    resourceIds: string[],
+  ): Promise<Map<string, { id: string; code: string }[]>> {
+    const map = new Map<string, { id: string; code: string }[]>();
+    if (resourceIds.length === 0) return map;
+    const rows = await executor
+      .select({
+        resourceId: resourceObjectives.resourceId,
+        id: learningObjectives.id,
+        number: learningObjectives.number,
+      })
+      .from(resourceObjectives)
+      .innerJoin(learningObjectives, eq(learningObjectives.id, resourceObjectives.objectiveId))
+      .where(inArray(resourceObjectives.resourceId, resourceIds))
+      .orderBy(asc(learningObjectives.number));
+    for (const row of rows) {
+      map.set(row.resourceId, [
+        ...(map.get(row.resourceId) ?? []),
+        { id: row.id, code: `O${row.number}` },
+      ]);
+    }
+    return map;
+  }
 
   /** Checks the upload (or link) before any transaction, and stores the file. */
   private async prepareContent(
@@ -575,6 +678,31 @@ type VersionContent =
       readonly sizeBytes: number;
       readonly sha256: string;
     };
+
+function toStudentResource(
+  row: {
+    resource: ResourceRow;
+    version: ResourceVersionRow;
+    module: { id: string; title: string } | null;
+  },
+  objectives: Map<string, { id: string; code: string }[]>,
+): StudentResource {
+  return {
+    id: row.resource.id,
+    title: row.resource.title,
+    module: row.module ? { id: row.module.id, title: row.module.title } : null,
+    objectives: objectives.get(row.resource.id) ?? [],
+    version: {
+      id: row.version.id,
+      number: row.version.number,
+      kind: row.version.url ? 'link' : 'file',
+      fileName: row.version.fileName,
+      contentType: row.version.contentType,
+      sizeBytes: row.version.sizeBytes,
+      url: row.version.url,
+    },
+  };
+}
 
 function versionFacts(version: ResourceVersionRow): Record<string, unknown> {
   return version.url

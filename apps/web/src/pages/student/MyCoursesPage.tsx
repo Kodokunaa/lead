@@ -35,7 +35,11 @@ export function MyCoursesPage() {
                   {classes.map((section) => (
                     <li key={section.id} className="flex">
                       <div className="flex w-full">
-                        <ClassCard section={section} headingLevel="h3" />
+                        <ClassCard
+                          section={section}
+                          to="/student/courses/$sectionId"
+                          headingLevel="h3"
+                        />
                       </div>
                     </li>
                   ))}

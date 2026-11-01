@@ -8,3 +8,4 @@ export * from './sections';
 export * from './content';
 export * from './calendar';
 export * from './resources';
+export * from './learning';

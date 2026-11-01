@@ -126,7 +126,7 @@ export function RosterTable({ roster, actions }: RosterTableProps) {
 interface ClassCardProps {
   readonly section: Pick<SectionSummary, 'id' | 'name' | 'course' | 'term' | 'teachers'>;
   /** Where the card leads, if anywhere. */
-  readonly to?: '/teacher/classes/$sectionId';
+  readonly to?: '/teacher/classes/$sectionId' | '/student/courses/$sectionId';
   readonly students?: number;
   /** h3 when the cards sit under a section heading of their own (e.g. a term). */
   readonly headingLevel?: 'h2' | 'h3';

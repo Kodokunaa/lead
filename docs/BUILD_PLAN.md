@@ -162,7 +162,14 @@ Slice 2e (course resources with approval: T07, A10, A11) — done:
 - Every resource keeps all its versions: pending, approved, returned for revision, withdrawn or superseded. At most one pending and one approved version (database indexes), and new versions and reviews lock the resource row (a test forces two submissions at once and fails without the lock). Approving needs both reviewer checks; returning needs a note; withdrawing needs a reason. Everything is audited; refused uploads leave no file behind; uploads are limited to 10 a minute per address.
 - Screens: T07 resources page (upload form, list with status and reviewer notes, new version), A10 resource library (search, status filter, RAG status shown as "not indexed yet" until Phase 6), A11 review page (details, versions, approve/return/withdraw).
 
-Next: the student views S03–S06.
+Slice 2f (student views S03, S05, S06) — done:
+
+- A student enrolled (not dropped) in a section opens it from My Courses: S03 shows the course details, the objectives that published modules teach, published modules with their published lessons, the approved references and the class's upcoming events; S05 shows a lesson as plain text with its objective, module outline, related approved sources and previous/next links; S06 shows an approved resource and downloads it (or opens its link in a new tab, with the site's name shown).
+- Students never see drafts, lessons of draft modules, resources tied to a draft module, or any resource version other than the approved one; a withdrawn resource disappears at once. Anyone not enrolled, or dropped, gets the same 404 as a missing class.
+- Each page's heading takes focus when it loads; loading and error states keep a heading and a way back.
+- S04 (adaptive pathway: locks, recommendations, mastery evidence) needs progress data and moves to Phase 4.
+
+Next: permission-scoped search H09, the A06 course offering record, route-level code splitting, then Phase 3 (assessments).
 
 ## Seed data
 

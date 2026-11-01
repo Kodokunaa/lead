@@ -14,5 +14,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     fileParallelism: false,
+    // Setup that builds a whole class (accounts with Argon2 hashing, courses, uploads) can pass
+    // the default 10 s while `pnpm test` also runs the web suite and builds on the same machine.
+    hookTimeout: 30_000,
   },
 });

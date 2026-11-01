@@ -86,24 +86,29 @@ export class CalendarService {
       );
     // Same answer for "not yours" and "does not exist", so section ids cannot be probed.
     if (!row) throw new NotFoundException('No such class.');
+    return this.forClass(row.term, row.courseId);
+  }
+
+  /**
+   * The calendar as a class of this course sees it: term-wide events and its own course's. The
+   * other courses an event names are not the class's business. Callers check access first.
+   */
+  async forClass(term: TermRow, courseId: string): Promise<ClassCalendar> {
     const [periods, events] = await Promise.all([
-      this.periodsOf(this.db, row.term.id),
-      this.eventsOf(this.db, row.term.id),
+      this.periodsOf(this.db, term.id),
+      this.eventsOf(this.db, term.id),
     ]);
     return {
-      term: toTerm(row.term),
+      term: toTerm(term),
       gradingPeriods: periods,
-      // A class sees term-wide events and its own course's; the other courses an event names are
-      // not this teacher's business.
       events: events
         .filter(
           (event) =>
-            event.courses.length === 0 ||
-            event.courses.some((course) => course.id === row.courseId),
+            event.courses.length === 0 || event.courses.some((course) => course.id === courseId),
         )
         .map((event) => ({
           ...event,
-          courses: event.courses.filter((course) => course.id === row.courseId),
+          courses: event.courses.filter((course) => course.id === courseId),
         })),
     };
   }
