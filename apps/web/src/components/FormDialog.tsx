@@ -28,7 +28,7 @@ interface FormDialogProps {
    * trigger. For actions that remove the trigger's row: the caller moves focus to its message.
    */
   readonly afterSave?: () => void;
-  readonly children: ReactNode;
+  readonly children?: ReactNode;
 }
 
 /** A shadcn dialog wrapping one form: open, fill in, save, close. */

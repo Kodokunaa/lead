@@ -18,6 +18,7 @@ import {
 import {
   ACCOUNT_STATUSES,
   AUDIT_OUTCOMES,
+  CALENDAR_EVENT_KINDS,
   CONTENT_STATUSES,
   ENROLLMENT_STATUSES,
   ROLES,
@@ -375,6 +376,76 @@ export const lessons = pgTable(
 );
 
 export type ModuleRow = typeof courseModules.$inferSelect;
+
+/** A term's grading periods, e.g. Prelim, Midterm, Finals (wireframe A08). */
+export const gradingPeriods = pgTable(
+  'grading_periods',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    termId: uuid('term_id')
+      .notNull()
+      .references(() => academicTerms.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+    startsOn: date('starts_on').notNull(),
+    endsOn: date('ends_on').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('grading_periods_term_name_idx').on(table.termId, sql`lower(${table.name})`),
+    check('grading_periods_dates_check', sql`${table.startsOn} <= ${table.endsOn}`),
+  ],
+);
+
+export const calendarEventKindEnum = pgEnum('calendar_event_kind', CALENDAR_EVENT_KINDS);
+
+/** Dates on a term's calendar: assessment periods, grade release, holidays, class events. */
+export const calendarEvents = pgTable(
+  'calendar_events',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    termId: uuid('term_id')
+      .notNull()
+      .references(() => academicTerms.id, { onDelete: 'restrict' }),
+    title: text('title').notNull(),
+    kind: calendarEventKindEnum('kind').notNull(),
+    startsOn: date('starts_on').notNull(),
+    /** Null for a single day. */
+    endsOn: date('ends_on'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('calendar_events_term_idx').on(table.termId, table.startsOn),
+    check(
+      'calendar_events_dates_check',
+      sql`${table.endsOn} is null or ${table.startsOn} <= ${table.endsOn}`,
+    ),
+  ],
+);
+
+/** Courses an event is limited to; an event with no rows here applies to every course. */
+export const calendarEventCourses = pgTable(
+  'calendar_event_courses',
+  {
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => calendarEvents.id, { onDelete: 'cascade' }),
+    courseId: uuid('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.courseId] }),
+    index('calendar_event_courses_course_idx').on(table.courseId),
+  ],
+);
+
+export type CalendarEventRow = typeof calendarEvents.$inferSelect;
 export type LessonRow = typeof lessons.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;

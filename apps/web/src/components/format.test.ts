@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { countOf, describeAction, describeDevice, formatDateTime } from './format';
+import {
+  countOf,
+  describeAction,
+  describeDevice,
+  formatDateTime,
+  formatDay,
+  formatDaySpan,
+  todayInManila,
+} from './format';
 
 describe('format', () => {
   it('shows times in Philippine time', () => {
@@ -31,5 +39,18 @@ describe('countOf', () => {
     expect(countOf(1, 'course')).toBe('1 course');
     expect(countOf(0, 'course')).toBe('0 courses');
     expect(countOf(26, 'account')).toBe('26 accounts');
+  });
+});
+
+describe('calendar days', () => {
+  it('formats a day and a range without shifting time zones', () => {
+    expect(formatDay('2026-08-10')).toBe('Aug 10, 2026');
+    expect(formatDaySpan('2026-10-12', '2026-10-16')).toBe('Oct 12, 2026 – Oct 16, 2026');
+    expect(formatDaySpan('2026-10-12', null)).toBe('Oct 12, 2026');
+  });
+
+  it('gives the date in Manila, which is ahead of UTC', () => {
+    expect(todayInManila(new Date('2026-11-02T15:59:00Z'))).toBe('2026-11-02');
+    expect(todayInManila(new Date('2026-11-02T16:00:00Z'))).toBe('2026-11-03');
   });
 });

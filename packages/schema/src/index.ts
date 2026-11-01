@@ -6,3 +6,4 @@ export * from './admin';
 export * from './catalog';
 export * from './sections';
 export * from './content';
+export * from './calendar';

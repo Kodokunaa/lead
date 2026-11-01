@@ -1,9 +1,7 @@
-import type { SectionDetails, SectionSummary } from '@lead/schema';
-import { Link } from '@tanstack/react-router';
+import type { SectionSummary } from '@lead/schema';
 import { useApiData } from '../../auth/use-api';
 import { FormMessage } from '../../components/form';
-import { countOf, termName } from '../../components/format';
-import { ClassCard, RosterTable, SeatsBar, teacherNames } from '../sections/shared';
+import { ClassCard } from '../sections/shared';
 
 /** T02 My Classes: the current term's classes this teacher runs. */
 export function MyClassesPage() {
@@ -38,50 +36,6 @@ export function MyClassesPage() {
               ))}
             </ul>
           ))}
-      </div>
-    </section>
-  );
-}
-
-/** One of the teacher's classes and its class list (read-only for teachers). */
-export function ClassRosterPage({ sectionId }: { sectionId: string }) {
-  const result = useApiData<SectionDetails>(`/teacher/classes/${sectionId}`);
-
-  if (result.status === 'loading') return <p role="status">Loading class…</p>;
-  if (result.status === 'error') return <FormMessage tone="error">{result.message}</FormMessage>;
-  const section = result.data;
-  const enrolled = section.roster.filter((entry) => entry.status === 'enrolled');
-
-  return (
-    <section aria-labelledby="page-title" className="max-w-4xl">
-      <p className="text-sm">
-        <Link to="/teacher/classes" className="link">
-          My Classes
-        </Link>
-      </p>
-      <h1 id="page-title" className="mt-2 text-2xl font-bold">
-        {section.course.code} · {section.name}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {section.course.title} · {termName(section.term)} · {teacherNames(section)}
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-6">
-        <div className="w-full max-w-sm">
-          <SeatsBar enrolled={section.enrolled} capacity={section.capacity} />
-        </div>
-        <Link
-          to="/teacher/content/$courseId"
-          params={{ courseId: section.course.id }}
-          className="link text-sm"
-        >
-          Course content
-        </Link>
-      </div>
-      <h2 className="mt-8 text-lg font-semibold">
-        Class list · {countOf(enrolled.length, 'student')}
-      </h2>
-      <div className="mt-3">
-        <RosterTable roster={enrolled} />
       </div>
     </section>
   );

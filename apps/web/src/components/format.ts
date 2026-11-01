@@ -11,6 +11,35 @@ export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
 }
 
+const DAY = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeZone: 'UTC' });
+
+/** Calendar days (YYYY-MM-DD) are formatted without shifting time zones. */
+export function formatDay(day: string): string {
+  return DAY.format(new Date(`${day}T00:00:00Z`));
+}
+
+/** "Oct 12, 2026" or "Oct 12, 2026 – Oct 16, 2026". */
+export function formatDaySpan(startsOn: string, endsOn: string | null): string {
+  return endsOn && endsOn !== startsOn
+    ? `${formatDay(startsOn)} – ${formatDay(endsOn)}`
+    : formatDay(startsOn);
+}
+
+const MANILA_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Manila',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/** Today's calendar day in the Philippines, as YYYY-MM-DD. */
+export function todayInManila(now: Date = new Date()): string {
+  const parts = Object.fromEntries(
+    MANILA_PARTS.formatToParts(now).map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 /** A short, readable device name from a browser's user-agent string. */
 export function describeDevice(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';

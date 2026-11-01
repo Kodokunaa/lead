@@ -1,4 +1,10 @@
-import type { SectionDetails, SectionSummary, StudentClass } from '@lead/schema';
+import type {
+  ClassCalendar,
+  CourseContent,
+  SectionDetails,
+  SectionSummary,
+  StudentClass,
+} from '@lead/schema';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -93,6 +99,108 @@ describe('teacher classes (T02)', () => {
     renderApp(`/teacher/classes/${SECTION_ID}`);
 
     expect(await screen.findByText('Class not found.')).toBeInTheDocument();
+  });
+});
+
+describe('class overview (T03)', () => {
+  it('shows the course details, what is coming up and the course outline', async () => {
+    const api = installFakeApi(fakeUser('teacher'));
+    const term = { ...summary().term, startsOn: '2000-01-01', endsOn: '2999-12-31' };
+    api.on(`GET /teacher/classes/${SECTION_ID}`, {
+      status: 200,
+      body: { ...summary(), roster: [] },
+    });
+    const calendar: ClassCalendar = {
+      term,
+      gradingPeriods: [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          name: 'Midterm',
+          position: 1,
+          startsOn: '2000-01-01',
+          endsOn: '2999-12-31',
+        },
+      ],
+      events: [
+        {
+          id: '99999999-9999-4999-8999-999999999991',
+          title: 'Orientation',
+          kind: 'class_event',
+          startsOn: '2000-01-05',
+          endsOn: null,
+          courses: [],
+        },
+        {
+          id: '99999999-9999-4999-8999-999999999992',
+          title: 'Quiz 3',
+          kind: 'assessment_period',
+          startsOn: '2999-03-01',
+          endsOn: '2999-03-05',
+          courses: [{ id: summary().course.id, code: 'IS 301' }],
+        },
+      ],
+    };
+    api.on(`GET /teacher/classes/${SECTION_ID}/calendar`, { status: 200, body: calendar });
+    const content: CourseContent = {
+      course: { id: summary().course.id, code: 'IS 301', title: 'Database Systems' },
+      objectives: [
+        {
+          id: '22222222-2222-4222-8222-222222222222',
+          code: 'O1',
+          description: 'Explain dependencies',
+        },
+      ],
+      modules: [
+        {
+          id: '12121212-1212-4212-8212-121212121212',
+          position: 1,
+          title: 'Foundations',
+          description: '',
+          objectiveIds: ['22222222-2222-4222-8222-222222222222'],
+          requiresPrevious: false,
+          masteryThreshold: null,
+          status: 'published',
+          lessons: [],
+        },
+      ],
+    };
+    api.on(`GET /teacher/content/${summary().course.id}`, { status: 200, body: content });
+    renderApp(`/teacher/classes/${SECTION_ID}`);
+
+    expect(await screen.findByRole('heading', { name: 'IS 301 · BSIS 3-A' })).toBeInTheDocument();
+    expect(await screen.findByText('Midterm')).toBeInTheDocument();
+    const upcoming = screen.getByRole('list', { name: 'Upcoming events' });
+    // Past events drop off; the class's own and term-wide ones that are still ahead remain.
+    expect(within(upcoming).queryByText('Orientation')).not.toBeInTheDocument();
+    expect(within(upcoming).getByText('Quiz 3')).toBeInTheDocument();
+    const modules = await screen.findByRole('list', { name: 'Modules' });
+    expect(within(modules).getByText(/Module 1: Foundations/)).toHaveTextContent('O1');
+    expect(within(modules).getByText('Published')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Course content' })).toBeInTheDocument();
+  });
+});
+
+describe('class overview, past term (T03)', () => {
+  it('does not load course content for a class from an earlier term', async () => {
+    const api = installFakeApi(fakeUser('teacher'));
+    const past = { ...summary().term, current: false };
+    api.on(`GET /teacher/classes/${SECTION_ID}`, {
+      status: 200,
+      body: { ...summary({ term: past }), roster: [] },
+    });
+    api.on(`GET /teacher/classes/${SECTION_ID}/calendar`, {
+      status: 200,
+      body: {
+        term: { ...past, startsOn: '2000-01-01', endsOn: '2000-05-01' },
+        gradingPeriods: [],
+        events: [],
+      },
+    });
+    renderApp(`/teacher/classes/${SECTION_ID}`);
+
+    expect(await screen.findByText(/Course content is shown for this term/)).toBeInTheDocument();
+    expect(await screen.findByText('Nothing else scheduled this term.')).toBeInTheDocument();
+    expect(api.calls.some((call) => call.startsWith('GET /teacher/content'))).toBe(false);
   });
 });
 

@@ -149,7 +149,14 @@ Slice 2c (course content: T04–T06) — done:
 - Screens: T04 course outline (objectives, modules with their lessons, move up/down, add module/lesson), T05 module editor, T06 lesson editor with the module outline. Publish is refused while the form has unsaved edits; a failed refresh keeps the editor and says so.
 - Moved to the next slice: A08 calendar and T03 class overview. Later: resources (T07, A10, A11) and student views (S03–S06).
 
-Next: A08 programs, terms and academic calendar, and T03 class overview.
+Slice 2d (academic calendar A08, class overview T03) — done:
+
+- A term's start and end dates can be moved; grading periods (e.g. Prelim, Midterm, Finals: in date order, inside the term, no overlaps, no repeated names) are saved as one list; calendar events (assessment period, grade release, holiday, class event; one day or a range) apply to the whole term or to chosen courses offered that term.
+- Every change locks the term row, so new dates and a new event cannot both pass against each other's old values (a test forces the overlap and fails without the lock). Term dates cannot move past an existing period or event. Dates before 1900 are refused.
+- A08 page at `/admin/courses/calendar?term=…` (linked from the Terms tab, under Course Management as in the wireframe): Academic structure (term dates, offerings count), Grading periods (editable rows), Calendar table (term start, events, term end).
+- T03 class overview replaces the bare class list: course details, the current grading period and upcoming events (Manila date), the course's objectives and modules, and the class list. Teachers see an event's scope only as far as their own course.
+
+Next: resources with approval (T07, A10, A11) and the student views S03–S06.
 
 ## Seed data
 

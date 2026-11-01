@@ -78,9 +78,11 @@ reference/          client documents and wireframes (gitignored, never commit)
 | `learning_objectives`  | course_id, number (unique per course; shown as `O1`, `O2`…), description                                                                                                                                                                                                                                       |
 | `course_modules`       | course_id, position, title, description, requires_previous, mastery_threshold (null or 50–100), status `draft`/`published`, published_at. Content belongs to the **course** (all its sections share it), per wireframe T04                                                                                     |
 | `module_objectives`    | PK (module_id, objective_id): which objectives a module teaches                                                                                                                                                                                                                                                |
+| `grading_periods`      | term_id, name (unique per term, case-insensitive), position, starts_on/ends_on (inside the term, non-overlapping)                                                                                                                                                                                              |
+| `calendar_events`      | term_id, title, kind (`assessment_period`/`grade_release`/`holiday`/`class_event`), starts_on, ends_on (null = one day); `calendar_event_courses` limits an event to courses (none = whole term)                                                                                                               |
 | `lessons`              | module_id, position, title, objective_id (must be one of the module's), body (plain text ≤ 20k; render as text, never HTML), status, published_at; CHECK: published ⇒ objective set and body not blank                                                                                                         |
 
-Migrations `apps/api/drizzle/0000`–`0011` (never edit a pushed migration; add a new one with
+Migrations `apps/api/drizzle/0000`–`0012` (never edit a pushed migration; add a new one with
 `pnpm --filter @lead/api db:generate`, custom SQL via `drizzle-kit generate --custom`).
 
 ## 4. API (all under `/api`)
@@ -95,7 +97,8 @@ Migrations `apps/api/drizzle/0000`–`0011` (never edit a pushed migration; add 
 | Catalog (`@Roles('admin')`)          | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`                                                                                                                                                          |
 | Sections (`@Roles('admin')`)         | `GET /admin/sections?term&q&page` (current term by default; answer carries `termId`), `GET/PATCH /admin/sections/:id`, `POST /admin/sections`, `POST /admin/sections/:id/teachers` (email), `/teachers/:teacherId/remove`, `/enrollments` (emails, up to 100; returns added + skipped with reasons), `/enrollments/:studentId/drop` (reason)                                                                                                                                   |
 | Course content (`@Roles('teacher')`) | `GET /teacher/content` (courses taught this term), `GET /teacher/content/:courseId` (objectives + modules + lesson summaries), `POST …/objectives`, `PATCH …/objectives/:id`, `POST …/modules`, `PATCH …/modules/:id`, `POST …/modules/:id/{move,publish,unpublish}`, `POST …/modules/:id/lessons`, `GET/PATCH …/lessons/:id`, `POST …/lessons/:id/{publish,unpublish}`. Only teachers of a current-term section of the course (404 otherwise); archived courses are read-only |
-| Classes                              | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                                                                                                                                                     |
+| Calendar (`@Roles('admin')`)         | `GET /admin/terms/:termId/calendar` (term, grading periods, events, offerings), `PATCH /admin/terms/:termId` (start/end dates; refused while a period or event would fall outside), `PUT …/grading-periods` (whole list), `POST …/events`, `PUT …/events/:id`, `POST …/events/:id/remove`. Every change locks the term row                                                                                                                                                     |
+| Classes                              | `GET /teacher/classes?term`, `GET /teacher/classes/:id` (`@Roles('teacher')`, own sections only, 404 otherwise, enrolled students only), `GET /teacher/classes/:id/calendar` (term-wide events and the class's course only); `GET /student/classes` (`@Roles('student')`, enrolled classes, newest term first)                                                                                                                                                                 |
 | Admin (`@Roles('admin')`)            | `GET /admin/users?status&role&q&page`, `GET /admin/users/:id`, `POST /admin/users/:id/{approve,reject,deactivate,reactivate,role,mfa/reset}` — all but approve need `reason`; MFA reset also needs the admin's `password`; changes are advisory-locked, re-check the actor, protect the last active admin, forbid self-changes                                                                                                                                                 |
 
 Request/response shapes live in `packages/schema/src/{auth,admin}.ts`. Development email is written as `.eml`
@@ -116,7 +119,10 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   and class list (`pages/teacher/`, `/teacher/classes/$sectionId`), S02 My Courses (`pages/student/`), shared
   `SeatsBar`/`RosterTable`/`ClassCard` in `pages/sections/shared.tsx`, T04 course outline (`/teacher/content`,
   `/teacher/content/$courseId`), T05 module editor (`…/modules/$moduleId`) and T06 lesson editor (`…/lessons/$lessonId`)
-  in `pages/teacher/content/` (Publish is refused while the form has unsaved edits), X04 access denied.
+  in `pages/teacher/content/` (Publish is refused while the form has unsaved edits), T03 class overview
+  (`pages/teacher/ClassOverviewPage.tsx` at `/teacher/classes/$sectionId`: details, upcoming events, course outline,
+  class list), A08 academic calendar (`pages/admin/calendar/`, `/admin/courses/calendar?term=<id>`, linked from the
+  Terms tab; the term is a search param because a path param remounts the page and drops focus), X04 access denied.
   `useApiData` keeps the last good data when a reload of the same path fails (`refreshError`).
 - **Design** (decided by the user — keep it): wireframes decide each screen's elements and layout; look = white
   background only (no dark mode), accent `#f97316`, Poppins (self-hosted `@fontsource/poppins`), CCC seal
@@ -133,8 +139,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
 - **Phase 2** in progress: slices 2a (course catalog, A05), 2b (sections, teaching assignments, enrollment; A07,
-  T02, S02) and 2c (course content: objectives, modules, lessons; T04–T06) done; calendar (A08) next.
-- Test counts after slice 2c: API 118, web 98, schema 41, tokens 5. Check `git log` for the latest commit.
+  T02, S02), 2c (course content: objectives, modules, lessons; T04–T06) and 2d (academic calendar A08, class
+  overview T03) done; resources (T07, A10, A11) and student views (S03–S06) next.
+- Test counts after slice 2d: API 124, web 111, schema 46, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -144,13 +151,11 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   clicked twice). Local DB tests use the **native PostgreSQL 18 Windows service on port 5432** (set up with
   `infra/local-postgres-setup.ps1`; `.env` URLs point to 5432). The project targets PG16 and pgvector is not installed
   on that PG18 — needed before Phase 6 (RAG). Redis/MinIO unavailable locally until Docker works.
-- The wireframe PDF (`reference/Wireframe.pdf`) could not be rendered in-session (no `pdftoppm`; the PDF viewer
-  cannot open that folder). Ask the user for page images of the screens being built.
 - No SMTP mailer yet (dev outbox only); no job to purge expired `sessions`/`account_tokens` (Phase 7);
   deployment security headers not set (CSP etc. listed in BUILD_PLAN Phase 7 checklist).
 - Dashboards (S01, T01, A01) and most role pages are placeholders. H06 notifications and H09 search not built.
 - A04 is read-only (three fixed roles; no custom permission model yet).
-- Web bundle is ~604 KB (183 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
+- Web bundle is ~623 KB (186 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
   splitting (`lazyRouteComponent`) soon.
 - The wireframe PDF's text can be extracted with pdf.js (`pdfjs-dist` in a scratch folder, `getTextContent()` per
   page): page N is the Nth screen in ID order (H01–H09, S01–S19, T01–T28, A01–A19, X01–X06), e.g. page 32 = T04.
@@ -184,15 +189,15 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 ## 9. Next steps (exact)
 
 1. **Phase 2 — academic structure and content** (screens A05–A08, A10–A11, T02–T07, S02–S03, S05–S06; see
-   BUILD_PLAN). Wireframe images for these screens have not been provided yet — ask the user. Slice by slice:
+   BUILD_PLAN). Read each screen's wireframe text first (see "wireframe PDF's text" in section 7). Slice by slice:
    a. Done: catalog (programs with CCC's seven seeded, academic terms, courses) and A05 Course Management.
    a2. Done: sections, teaching assignments and enrollments; A07, T02, S02.
    b. Done (slice 2c): learning objectives, modules, lessons with draft/publish rules; T04–T06.
-   b2. **Next:** A08 "Programs, terms and academic calendar" (wireframe page 64: term start/end, grading periods,
-   calendar events with scope, inline validation of conflicting dates) and T03 class overview (page 31).
+   b2. Done (slice 2d): A08 academic calendar (term dates, grading periods, events) and T03 class overview.
    Open: archiving a course with live sections should warn or refuse; unpublishing may need a reason once students
-   have progress (consider adding `module.unpublished`/`lesson.unpublished` to `REASON_REQUIRED_ACTIONS`).
-   c. Resource upload with approval workflow (T07, A10, A11; local disk in dev; MinIO later) and student views
+   have progress (consider adding `module.unpublished`/`lesson.unpublished` to `REASON_REQUIRED_ACTIONS`); moving a
+   term that has started could require a reason too (`term.dates_changed`); A06 course offering record not built.
+   c. **Next:** resource upload with approval workflow (T07, A10, A11; local disk in dev; MinIO later) and student views
    S03–S06 (published lessons only, enrolled students only; render lesson text as text, never HTML).
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects
    them) once programs exist — confirm the student ID format with the user.

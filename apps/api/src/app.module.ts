@@ -5,6 +5,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SectionsModule } from './sections/sections.module';
 import { ConfigModule } from './config/config.module';
@@ -32,6 +33,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     CatalogModule,
     SectionsModule,
     ContentModule,
+    CalendarModule,
     ThrottlerModule.forRoot([{ name: 'default', ...DEFAULT_RATE_LIMIT }]),
   ],
   controllers: [HealthController],

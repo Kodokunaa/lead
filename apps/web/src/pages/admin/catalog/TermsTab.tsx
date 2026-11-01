@@ -1,4 +1,5 @@
 import { SEMESTER_LABELS, SEMESTERS, type Term } from '@lead/schema';
+import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -24,13 +25,7 @@ import {
   TextField,
 } from '../../../components/form';
 import { FormDialog } from '../../../components/FormDialog';
-
-const DATE = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeZone: 'UTC' });
-
-/** Dates are calendar days (YYYY-MM-DD); format them without shifting time zones. */
-function formatDay(day: string): string {
-  return DATE.format(new Date(`${day}T00:00:00Z`));
-}
+import { formatDay } from '../../../components/format';
 
 /** School terms; exactly one is current, and new sections default to it. */
 export function TermsTab() {
@@ -124,7 +119,15 @@ export function TermsTab() {
                       <TableCell>
                         {formatDay(term.startsOn)} – {formatDay(term.endsOn)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Link
+                          to="/admin/courses/calendar"
+                          search={{ term: term.id }}
+                          className="link mr-3 text-sm"
+                          aria-label={`Calendar for ${name}`}
+                        >
+                          Calendar
+                        </Link>
                         {!term.current && (
                           <Button
                             type="button"

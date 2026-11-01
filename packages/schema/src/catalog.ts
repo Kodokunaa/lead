@@ -40,7 +40,10 @@ export const SEMESTER_LABELS: Readonly<Record<Semester, string>> = {
 };
 
 /** Calendar date as YYYY-MM-DD (no time zone). */
-const isoDate = z.iso.date();
+/** Calendar date as YYYY-MM-DD; years before 1900 (e.g. 0000) are typos Postgres would refuse. */
+export const isoDateSchema = z.iso
+  .date()
+  .refine((day) => day >= '1900-01-01', 'Enter a date from 1900 onward.');
 
 export const termSchema = z.object({
   id: z.uuid(),
@@ -65,8 +68,8 @@ export const termInputSchema = z
   .object({
     schoolYear: schoolYearSchema,
     semester: z.enum(SEMESTERS),
-    startsOn: isoDate,
-    endsOn: isoDate,
+    startsOn: isoDateSchema,
+    endsOn: isoDateSchema,
   })
   .refine((term) => term.startsOn < term.endsOn, {
     message: 'The term must end after it starts.',

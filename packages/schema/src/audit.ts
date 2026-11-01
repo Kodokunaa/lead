@@ -73,6 +73,11 @@ export const KNOWN_ACTIONS = [
   'lesson.updated',
   'lesson.published',
   'lesson.unpublished',
+  'term.dates_changed',
+  'grading_periods.set',
+  'calendar_event.created',
+  'calendar_event.updated',
+  'calendar_event.removed',
   'intervention.assigned',
   'backup.completed',
 ] as const;

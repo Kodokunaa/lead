@@ -85,6 +85,13 @@
       "when": 1793521988722,
       "tag": "0011_lesson_publish_check",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793551471127,
+      "tag": "0012_academic_calendar",
+      "breakpoints": true
     }
   ]
 }

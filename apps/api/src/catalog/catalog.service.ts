@@ -58,7 +58,7 @@ function toProgram(row: ProgramRow): Program {
   return { id: row.id, code: row.code, name: row.name, active: row.active };
 }
 
-function toTerm(row: TermRow): Term {
+export function toTerm(row: TermRow): Term {
   return {
     id: row.id,
     schoolYear: row.schoolYear,

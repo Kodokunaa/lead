@@ -23,7 +23,9 @@ import { MyCoursesPage } from './pages/student/MyCoursesPage';
 import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/CourseOutlinePage';
 import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
 import { ModuleEditorPage } from './pages/teacher/content/ModuleEditorPage';
-import { ClassRosterPage, MyClassesPage } from './pages/teacher/MyClassesPage';
+import { CalendarPage } from './pages/admin/calendar/CalendarPage';
+import { ClassOverviewPage } from './pages/teacher/ClassOverviewPage';
+import { MyClassesPage } from './pages/teacher/MyClassesPage';
 import { RolesPage } from './pages/admin/RolesPage';
 import { UserDetailsPage } from './pages/admin/UserDetailsPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -96,11 +98,16 @@ function SectionDetailsRoute(): ReactElement {
   return <SectionDetailsPage key={sectionId} sectionId={sectionId} />;
 }
 
-function ClassRosterRoute(): ReactElement {
-  const sectionId = classRosterRoute.useParams({
+function CalendarRoute(): ReactElement {
+  const termId = calendarRoute.useSearch({ select: (search: CalendarSearch) => search.term });
+  return <CalendarPage termId={termId} />;
+}
+
+function ClassOverviewRoute(): ReactElement {
+  const sectionId = classOverviewRoute.useParams({
     select: (params: { sectionId: string }) => params.sectionId,
   });
-  return <ClassRosterPage key={sectionId} sectionId={sectionId} />;
+  return <ClassOverviewPage key={sectionId} sectionId={sectionId} />;
 }
 
 function CourseOutlineRoute(): ReactElement {
@@ -236,11 +243,28 @@ const sectionDetailsRoute = createRoute({
   component: SectionDetailsRoute,
 });
 
-const classRosterRoute = createRoute({
+interface CalendarSearch {
+  readonly term?: string;
+}
+
+/**
+ * The term is a search parameter (?term=…), not part of the path: a new path would be a new
+ * route match and remount the page, dropping focus from the term list on every change.
+ */
+const calendarRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/courses/calendar',
+  validateSearch: (search: Record<string, unknown>): CalendarSearch =>
+    typeof search.term === 'string' && search.term ? { term: search.term } : {},
+  beforeLoad: requireRole('admin'),
+  component: CalendarRoute,
+});
+
+const classOverviewRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/classes/$sectionId',
   beforeLoad: requireRole('teacher'),
-  component: ClassRosterRoute,
+  component: ClassOverviewRoute,
 });
 
 const courseOutlineRoute = createRoute({
@@ -267,7 +291,8 @@ const lessonEditorRoute = createRoute({
 const extraSignedInRoutes = [
   userDetailsRoute,
   sectionDetailsRoute,
-  classRosterRoute,
+  classOverviewRoute,
+  calendarRoute,
   courseOutlineRoute,
   moduleEditorRoute,
   lessonEditorRoute,
