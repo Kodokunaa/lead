@@ -2,8 +2,9 @@ import { ROLE_LABELS, SHARED_ROUTES, type Role } from '@lead/schema';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Bell, Menu, Search } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
+import { errorMessage, FormMessage } from '../components/form';
 import { MobileDrawer } from './MobileDrawer';
-import { usePreviewRole } from './preview-role';
+import { useAuth } from '../auth/session';
 import { Sidebar } from './Sidebar';
 
 interface AppShellProps {
@@ -15,13 +16,22 @@ interface AppShellProps {
 export function AppShell({ role, children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const { setRole } = usePreviewRole();
+  const auth = useAuth();
   const navigate = useNavigate();
   const accountLabel = `${ROLE_LABELS[role]} account`;
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
+  // Signing out ends the session in every tab. If the server cannot be reached the user stays
+  // signed in and is told, rather than leaving a live session behind on a shared computer.
   const logout = () => {
-    setRole(null);
-    void navigate({ to: '/' });
+    setSignOutError(null);
+    closeMenu();
+    auth
+      .signOut()
+      .then(() => navigate({ to: '/' }))
+      .catch((error: unknown) => {
+        setSignOutError(`Could not sign out. ${errorMessage(error)}`);
+      });
   };
 
   return (
@@ -106,6 +116,11 @@ export function AppShell({ role, children }: AppShellProps) {
             tabIndex={-1}
             className="min-w-0 flex-1 overflow-y-auto px-4 py-6 outline-none md:px-8"
           >
+            {signOutError && (
+              <div className="mb-4">
+                <FormMessage tone="error">{signOutError}</FormMessage>
+              </div>
+            )}
             {children}
           </main>
         </div>

@@ -1,16 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { PreviewRoleProvider } from './shell/preview-role';
+import { AuthStore } from './auth/auth-store';
+import { AuthProvider } from './auth/session';
 import './styles.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root is missing from index.html');
 
+const store = new AuthStore();
+// In development, a hot reload replaces this module; stop the old store listening to other tabs.
+import.meta.hot?.dispose(() => store.close());
+
 createRoot(container).render(
   <StrictMode>
-    <PreviewRoleProvider>
+    <AuthProvider store={store}>
       <App />
-    </PreviewRoleProvider>
+    </AuthProvider>
   </StrictMode>,
 );

@@ -67,6 +67,8 @@ Each phase ends with passing tests, a review, and a demo of its screens.
 | 7   | Operations and hardening: backups and restore review, platform health, system settings, audit-log viewer, security review, load test, mobile-browser pass       | A15, A17–A18, X06                                           |
 | 8   | Native mobile (Expo): student screens first, push notifications                                                                                                 | mobile S-screens                                            |
 
+Deployment checklist for Phase 7 (from the slice 3 security review): serve the web app with a Content-Security-Policy (`default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff`; keep the web app and API on one origin (if they ever move to sibling subdomains, require `Content-Type: application/json` on the cookie endpoints, since SameSite=Strict no longer separates them).
+
 Phase 7 also prepares the Chapter 3–4 evaluation (functionality, usability, performance; ISO/IEC 25010 survey with CCC students, faculty and administrators).
 
 ## Status
@@ -95,9 +97,18 @@ Slice 2 (MFA, registration, recovery; API for H02–H05) — done:
 - Password recovery by emailed link: single use, 30 minutes, newest only, signs out every session.
 - Email-taking endpoints answer at once and work in the background, so timing cannot reveal which emails exist; at most one email per account per minute. Development email goes to `.eml` files (`MAIL_OUTBOX_DIR`); SMTP comes with deployment (Phase 7).
 
-Next slices:
+Slice 3 (web sign-in, H01–H05 and the H08 security page) — done:
 
-3. Web: real sign-in screen, token refresh (one refresh at a time across tabs), sign-out synced across tabs, remove the preview role.
+- The preview role picker is gone. Sign-in (with the MFA code or recovery-code step), account request, email confirmation, forgot and reset password screens, and two-step setup on the security page (QR code drawn in the browser, recovery codes shown once).
+- The access token lives only in memory; the session is restored from the refresh cookie on load. Refreshes run one at a time per tab and across tabs (Web Locks), with a retry after the API's 409. Sign-in and sign-out reach every open tab (BroadcastChannel); a refresh that started earlier cannot undo either.
+- Sign-out only completes once the server confirms; otherwise the user stays signed in and is told. If the API is down at load, the app offers a retry instead of signing out.
+- Deep links survive sign-in (same-site paths only, checked where the redirect happens). Emailed link tokens are removed from the address bar once read; a reset also ends this browser's session.
+- Focus moves to each new step and to error messages; busy buttons stay focusable.
+- Auth API responses are sent with `Cache-Control: no-store`.
+- Checked end to end in the browser against the real API and PostgreSQL: request account, confirm by email link, approve, sign in, set up MFA, sign out, sign in with a code.
+
+Next slice:
+
 4. Admin: users, account details, roles and permissions, approval queue (A02–A04, A16); profile, preferences, sessions list, search (H07–H09); access denied (X04).
 
 ## Seed data

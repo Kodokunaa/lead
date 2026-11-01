@@ -5,16 +5,38 @@ import {
   createRouter,
   Outlet,
   redirect,
+  useLocation,
   type AnyRoute,
   type RouterHistory,
 } from '@tanstack/react-router';
+import type { SessionState } from './auth/auth-store';
+import { useSession } from './auth/session';
+import { ForgotPasswordPage, RegisterPage, TokenPasswordPage } from './pages/auth/AccountPages';
+import { SignInPage } from './pages/auth/SignInPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
-import { PreviewSignInPage } from './pages/PreviewSignInPage';
+import { SecurityPage } from './pages/SecurityPage';
 import { AppShell } from './shell/AppShell';
-import { usePreviewRole } from './shell/preview-role';
 
 export interface RouterContext {
-  readonly role: Role | null;
+  readonly session: SessionState;
+}
+
+function roleOf(session: SessionState): Role | null {
+  return session.status === 'signed-in' ? session.user.role : null;
+}
+
+/**
+ * Where to go after signing in. Only a path on this site: it must start with one "/", so
+ * "//evil.example" or "https://…" cannot turn sign-in into an open redirect.
+ */
+export function safeRedirect(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.startsWith('/')) return null;
+  if (value.startsWith('//') || value.startsWith('/\\')) return null;
+  return value;
+}
+
+interface SignInSearch {
+  readonly redirect?: string;
 }
 
 const SHARED_TITLES: Readonly<Record<keyof typeof SHARED_ROUTES, string>> = {
@@ -25,13 +47,25 @@ const SHARED_TITLES: Readonly<Record<keyof typeof SHARED_ROUTES, string>> = {
 };
 
 function SignedInLayout() {
-  const { role } = usePreviewRole();
-  if (!role) return null;
+  const session = useSession();
+  if (session.status !== 'signed-in') return null;
   return (
-    <AppShell role={role}>
+    <AppShell role={session.user.role}>
       <Outlet />
     </AppShell>
   );
+}
+
+function SecurityRoute() {
+  const session = useSession();
+  return session.status === 'signed-in' ? <SecurityPage user={session.user} /> : null;
+}
+
+/** Pages opened from emailed links read their token from the URL fragment. */
+function LinkTokenPage({ kind }: { kind: 'confirm' | 'reset' }) {
+  const { hash } = useLocation();
+  const path = kind === 'confirm' ? '/confirm-email' : '/reset-password';
+  return <TokenPasswordPage hash={hash} kind={kind} path={path} />;
 }
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet });
@@ -39,18 +73,50 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outle
 const signInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: ({ context }) => {
-    if (context.role) throw redirect({ to: homePathFor(context.role) });
+  validateSearch: (search: Record<string, unknown>): SignInSearch => {
+    const target = safeRedirect(search.redirect);
+    return target ? { redirect: target } : {};
   },
-  component: PreviewSignInPage,
+  beforeLoad: ({ context, search }) => {
+    const role = roleOf(context.session);
+    if (!role) return;
+    // Checked here, not only in validateSearch: the router passes unvalidated keys through.
+    // A role guard further down sends a link to another role's page back to this role's home.
+    const target = safeRedirect(search.redirect);
+    if (target) throw redirect({ href: target });
+    throw redirect({ to: homePathFor(role) });
+  },
+  component: SignInPage,
 });
 
-/** Every signed-in screen sits under this layout; without a role the user goes back to sign in. */
+/** Signed-out account screens; reachable whether or not someone is signed in. */
+const accountRoutes = [
+  createRoute({ getParentRoute: () => rootRoute, path: '/register', component: RegisterPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/forgot-password',
+    component: ForgotPasswordPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/reset-password',
+    component: () => <LinkTokenPage kind="reset" />,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/confirm-email',
+    component: () => <LinkTokenPage kind="confirm" />,
+  }),
+];
+
+/** Every signed-in screen sits under this layout; without a session the user goes to sign in. */
 const signedInRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'signed-in',
-  beforeLoad: ({ context }) => {
-    if (!context.role) throw redirect({ to: '/' });
+  beforeLoad: ({ context, location }) => {
+    if (roleOf(context.session)) return;
+    // Remember the deep link, so signing in returns to it.
+    throw redirect({ to: '/', search: { redirect: location.href } });
   },
   component: SignedInLayout,
 });
@@ -62,9 +128,10 @@ function roleRoutes(role: Role): AnyRoute[] {
       createRoute({
         getParentRoute: () => signedInRoute,
         path: item.path,
-        // Client-side convenience only: the API enforces role access from Phase 1 onward.
+        // Client-side convenience only: the API enforces role access.
         beforeLoad: ({ context }: { context: RouterContext }) => {
-          if (context.role !== role) throw redirect({ to: homePathFor(context.role ?? role) });
+          const current = roleOf(context.session);
+          if (current !== role) throw redirect({ to: homePathFor(current ?? role) });
         },
         component: () => <PlaceholderPage title={item.label} screen={item.screen} />,
       }),
@@ -75,21 +142,23 @@ const sharedRoutes = (Object.keys(SHARED_ROUTES) as (keyof typeof SHARED_ROUTES)
   createRoute({
     getParentRoute: () => signedInRoute,
     path: SHARED_ROUTES[key].path,
-    component: () => (
-      <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />
-    ),
+    component:
+      key === 'security'
+        ? SecurityRoute
+        : () => <PlaceholderPage title={SHARED_TITLES[key]} screen={SHARED_ROUTES[key].screen} />,
   }),
 );
 
 const routeTree = rootRoute.addChildren([
   signInRoute,
+  ...accountRoutes,
   signedInRoute.addChildren([...ROLES.flatMap(roleRoutes), ...sharedRoutes]),
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({
     routeTree,
-    context: { role: null },
+    context: { session: { status: 'loading' } },
     defaultNotFoundComponent: () => <PlaceholderPage title="Page not found" screen="X02" />,
     ...(history ? { history } : {}),
   });

@@ -21,6 +21,8 @@ export const currentUserSchema = z.object({
   email: z.email(),
   displayName: z.string(),
   role: roleSchema,
+  /** Whether two-step verification is on, for the security page. */
+  mfaEnabled: z.boolean(),
 });
 export type CurrentUser = z.infer<typeof currentUserSchema>;
 

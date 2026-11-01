@@ -70,6 +70,7 @@ describe('authentication (integration)', () => {
     expect(setCookie).toMatch(/HttpOnly/i);
     expect(setCookie).toMatch(/SameSite=Strict/i);
     expect(setCookie).toMatch(/Path=\/api\/auth/);
+    expect(response.headers['cache-control']).toBe('no-store');
     expect(await auditCount('auth.signed_in', email)).toBe(1);
   });
 

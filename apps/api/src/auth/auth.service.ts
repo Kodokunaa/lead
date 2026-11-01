@@ -90,7 +90,13 @@ export class AuthError extends HttpException {
 }
 
 export function toCurrentUser(user: UserRow): CurrentUser {
-  return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    mfaEnabled: user.mfaEnabledAt !== null,
+  };
 }
 
 @Injectable()

@@ -45,7 +45,9 @@ pnpm typecheck
 pnpm format
 ```
 
-The API has real sign-in (`POST /api/auth/sign-in`, `refresh`, `sign-out`, `GET /api/auth/me`), two-step verification (`/api/auth/mfa/*`), registration with email confirmation (`register`, `email/verify`) and password recovery (`password/forgot`, `password/reset`). In development, emails are written as `.eml` files to `storage/outbox` instead of being sent. The web app still opens a **preview sign-in** that lets you enter as Student, Teacher or Administrator to view each role's layout, until the sign-in screen is connected later in Phase 1.
+The API has real sign-in (`POST /api/auth/sign-in`, `refresh`, `sign-out`, `GET /api/auth/me`), two-step verification (`/api/auth/mfa/*`), registration with email confirmation (`register`, `email/verify`) and password recovery (`password/forgot`, `password/reset`). In development, emails are written as `.eml` files to `storage/outbox` instead of being sent.
+
+The web app uses the same sign-in. To try it locally, run `pnpm --filter @lead/api db:seed` once and sign in as `admin@lead.test`, `teacher01@lead.test` or `learner01@lead.test` with the `SEED_PASSWORD` from your `.env`. New accounts from **Request an account** need approval; until the admin screens exist (Phase 1, slice 4), approve one in the database by setting its `status` to `active`.
 
 ## Data and privacy
 
