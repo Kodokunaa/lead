@@ -216,8 +216,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    c. Done (slice 2e): resources with approval (T07, A10, A11). Open: OOXML files are only checked for the zip
    header (verify `[Content_Types].xml` and cap extraction before Phase 6 parses them); downloads are not audited;
    teachers of a course see each other's drafts (by design); MinIO replaces local disk for deployment.
-   c2. Done (slice 2f): student views S03, S05, S06. Students still see teachers' email addresses on class pages
-   (kept on purpose; confirm with the user). S04 "modules and adaptive pathway" needs progress data (Phase 4).
+   c2. Done (slice 2f): student views S03, S05, S06. Students see their teachers' email addresses on class pages
+   (confirmed by the user, 2026-11-02). S04 "modules and adaptive pathway" needs progress data (Phase 4).
    d. Consider adding student ID and program to registration and the approval screen (the CCC alumni portal collects
    them) once programs exist — confirm the student ID format with the user.
    e. **Next:** permission-scoped search H09 (there is content now), A06 course offering record, and route-level code
