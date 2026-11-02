@@ -1,4 +1,5 @@
 import type { Course, CourseListResponse, Program } from '@lead/schema';
+import { Link } from '@tanstack/react-router';
 import { Plus, Search } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '../../../auth/session';
 import { useApiData } from '../../../auth/use-api';
 import {
@@ -27,6 +27,7 @@ import {
 } from '../../../components/form';
 import { countOf } from '../../../components/format';
 import { FormDialog } from '../../../components/FormDialog';
+import { CourseFields } from './CourseFields';
 
 function listPath(q: string, program: string, archived: boolean, page: number): string {
   const params = new URLSearchParams();
@@ -220,7 +221,16 @@ function CourseTable({
           <TableBody className="animate-fade">
             {response.items.map((course) => (
               <TableRow key={course.id} className="transition-colors hover:bg-accent/60">
-                <TableCell className="px-4 font-semibold">{course.code}</TableCell>
+                <TableCell className="px-4 font-semibold">
+                  <Link
+                    to="/admin/courses/$courseId"
+                    params={{ courseId: course.id }}
+                    className="link"
+                    aria-label={`${course.code} record`}
+                  >
+                    {course.code}
+                  </Link>
+                </TableCell>
                 <TableCell className="whitespace-normal">
                   {course.title}
                   {course.archived && (
@@ -288,9 +298,6 @@ interface CourseDialogProps {
 
 function CourseDialog({ course, programs, disabled, onSaved }: CourseDialogProps) {
   const auth = useAuth();
-  const programId = useId();
-  const descriptionId = useId();
-  const offered = programs.filter((program) => program.active || program.id === course?.programId);
 
   const save = async (form: FormData) => {
     const body = {
@@ -327,56 +334,20 @@ function CourseDialog({ course, programs, disabled, onSaved }: CourseDialogProps
       submitLabel={course ? 'Save changes' : 'Add course'}
       onSubmit={save}
     >
-      <div className="grid grid-cols-[1fr_6rem] gap-3">
-        <TextField label="Course code" name="code" defaultValue={course?.code} required />
-        <TextField
-          label="Units"
-          name="units"
-          type="number"
-          min={1}
-          max={6}
-          defaultValue={course?.units ?? 3}
-          required
-        />
-      </div>
-      <TextField label="Title" name="title" defaultValue={course?.title} required />
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={programId}>Program</Label>
-        <select
-          id={programId}
-          name="programId"
-          defaultValue={course?.programId ?? ''}
-          className={SELECT_CLASS}
-        >
-          <option value="">General education (all programs)</option>
-          {offered.map((program) => (
-            <option key={program.id} value={program.id}>
-              {program.code} – {program.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={descriptionId}>Description</Label>
-        <Textarea
-          id={descriptionId}
-          name="description"
-          defaultValue={course?.description}
-          rows={3}
-          className="rounded-xl"
-        />
-      </div>
+      <CourseFields course={course} programs={programs} />
     </FormDialog>
   );
 }
 
 interface ArchiveDialogProps {
   readonly course: Course;
+  /** Sections of this course in the current term, when known: archiving does not end them. */
+  readonly currentSections?: number;
   readonly onDone: (text: string) => void;
   readonly onError: (text: string) => void;
 }
 
-function ArchiveDialog({ course, onDone, onError }: ArchiveDialogProps) {
+export function ArchiveDialog({ course, currentSections, onDone, onError }: ArchiveDialogProps) {
   const auth = useAuth();
   const [busy, setBusy] = useState(false);
 
@@ -410,7 +381,11 @@ function ArchiveDialog({ course, onDone, onError }: ArchiveDialogProps) {
       triggerVariant="ghost"
       triggerLabel={`Archive ${course.code}`}
       title={`Archive ${course.code}`}
-      description="Archived courses get no new sections. Existing classes and records stay."
+      description={
+        currentSections
+          ? `${countOf(currentSections, 'section')} of ${course.code} this term will keep running; archiving only stops new sections. Existing records stay.`
+          : 'Archived courses get no new sections. Existing classes and records stay.'
+      }
       submitLabel="Archive course"
       onSubmit={async (form) => {
         await auth.request(`/admin/courses/${course.id}/archive`, {

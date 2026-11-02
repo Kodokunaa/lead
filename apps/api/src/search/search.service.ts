@@ -29,10 +29,14 @@ function likePattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
 }
 
-/** The status of a resource's newest version, for staff results. */
+/**
+ * The status of a resource's newest version. The outer column is named in full: in a query on
+ * one table Drizzle writes it as a bare "id", which inside the subquery means the version's id.
+ */
 const latestStatus = sql<ResourceStatus>`(
   select v.status from ${resourceVersions} v
-  where v.resource_id = ${resources.id} order by v.number desc limit 1
+  where v.resource_id = ${sql.identifier('resources')}.${sql.identifier('id')}
+  order by v.number desc limit 1
 )`;
 
 /** Up to LIMIT results, and whether there were more. */

@@ -21,6 +21,7 @@ import {
   termInputSchema,
   type Course,
   type CourseListResponse,
+  type CourseRecord,
   type Program,
   type Term,
 } from '@lead/schema';
@@ -30,6 +31,7 @@ import { CurrentUserRow, Roles } from '../auth/auth.guard';
 import { clientInfo, parseBody } from '../auth/http';
 import type { UserRow } from '../database/schema';
 import { CatalogService } from './catalog.service';
+import { CourseRecordService } from './course-record.service';
 
 const id = new ParseUUIDPipe({ version: '4' });
 
@@ -41,7 +43,10 @@ function change(admin: UserRow, request: Request, reason: string | null = null):
 @Roles('admin')
 @Controller('admin')
 export class CatalogController {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly records: CourseRecordService,
+  ) {}
 
   @Get('programs')
   listPrograms(): Promise<Program[]> {
@@ -101,6 +106,12 @@ export class CatalogController {
   @Get('courses')
   listCourses(@Query() query: unknown): Promise<CourseListResponse> {
     return this.catalog.listCourses(parseBody(courseListQuerySchema, query, 'Check the filters.'));
+  }
+
+  /** A06 Course offering and curriculum record. */
+  @Get('courses/:id/record')
+  courseRecord(@Param('id', id) courseId: string): Promise<CourseRecord> {
+    return this.records.record(courseId);
   }
 
   @Post('courses')

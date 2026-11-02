@@ -22,6 +22,7 @@ import {
   CatalogPage,
   ClassOverviewPage,
   ContentHomePage,
+  CourseRecordPage,
   CourseOutlinePage,
   LessonEditorPage,
   ModuleEditorPage,
@@ -147,6 +148,13 @@ function StudentResourceRoute(): ReactElement {
     select: (params: { sectionId: string; resourceId: string }) => params,
   });
   return <StudentResourcePage key={resourceId} sectionId={sectionId} resourceId={resourceId} />;
+}
+
+function CourseRecordRoute(): ReactElement {
+  const courseId = courseRecordRoute.useParams({
+    select: (params: { courseId: string }) => params.courseId,
+  });
+  return <CourseRecordPage key={courseId} courseId={courseId} />;
 }
 
 function ClassOverviewRoute(): ReactElement {
@@ -348,6 +356,14 @@ const studentResourceRoute = createRoute({
   component: StudentResourceRoute,
 });
 
+/** A06; static paths like /admin/courses/calendar are matched before this one. */
+const courseRecordRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/admin/courses/$courseId',
+  beforeLoad: requireRole('admin'),
+  component: CourseRecordRoute,
+});
+
 const classOverviewRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/classes/$sectionId',
@@ -381,6 +397,7 @@ const extraSignedInRoutes = [
   sectionDetailsRoute,
   classOverviewRoute,
   calendarRoute,
+  courseRecordRoute,
   resourcesRoute,
   resourceLibraryRoute,
   resourceReviewRoute,

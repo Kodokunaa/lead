@@ -22,6 +22,9 @@ export const RolesPage = page(() => import('./admin/RolesPage').then((m) => m.Ro
 export const CatalogPage = page(() =>
   import('./admin/catalog/CatalogPage').then((m) => m.CatalogPage),
 );
+export const CourseRecordPage = page(() =>
+  import('./admin/catalog/CourseRecordPage').then((m) => m.CourseRecordPage),
+);
 export const CalendarPage = page(() =>
   import('./admin/calendar/CalendarPage').then((m) => m.CalendarPage),
 );

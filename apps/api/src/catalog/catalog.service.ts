@@ -69,7 +69,7 @@ export function toTerm(row: TermRow): Term {
   };
 }
 
-function toCourse(row: CourseRow, programCode: string | null): Course {
+export function toCourse(row: CourseRow, programCode: string | null): Course {
   return {
     id: row.id,
     code: row.code,

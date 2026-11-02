@@ -96,7 +96,7 @@ Migrations `apps/api/drizzle/0000`–`0013` (never edit a pushed migration; add 
 | MFA                                  | `POST /auth/mfa/setup`, `/enable` (password + code), `/disable` (password + code), `/verify` (public: challenge + code or recovery code)                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Accounts (public)                    | `POST /auth/register` (name, email, role student/teacher; no password), `/email/verify` (token + password), `/password/forgot`, `/password/reset` — email-taking ones answer 202 at once and work in the background                                                                                                                                                                                                                                                                                                                                                              |
 | Self                                 | `GET /me/sessions`, `POST /me/sessions/:id/revoke`, `POST /me/sessions/revoke-others`, `PATCH /me/profile`, `POST /me/password`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Catalog (`@Roles('admin')`)          | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`                                                                                                                                                                                                                                                            |
+| Catalog (`@Roles('admin')`)          | `GET/POST /admin/programs`, `PATCH /admin/programs/:id`, `GET/POST /admin/terms`, `POST /admin/terms/:id/make-current`, `GET /admin/courses?q&program=<id or general>&archived&page`, `POST /admin/courses`, `PATCH /admin/courses/:id` (only fields sent), `POST /admin/courses/:id/archive` (reason) and `/restore`, `GET /admin/courses/:id/record` (A06: sections per term with teachers and seats, content and resource counts)                                                                                                                                             |
 | Sections (`@Roles('admin')`)         | `GET /admin/sections?term&q&page` (current term by default; answer carries `termId`), `GET/PATCH /admin/sections/:id`, `POST /admin/sections`, `POST /admin/sections/:id/teachers` (email), `/teachers/:teacherId/remove`, `/enrollments` (emails, up to 100; returns added + skipped with reasons), `/enrollments/:studentId/drop` (reason)                                                                                                                                                                                                                                     |
 | Course content (`@Roles('teacher')`) | `GET /teacher/content` (courses taught this term), `GET /teacher/content/:courseId` (objectives + modules + lesson summaries), `POST …/objectives`, `PATCH …/objectives/:id`, `POST …/modules`, `PATCH …/modules/:id`, `POST …/modules/:id/{move,publish,unpublish}`, `POST …/modules/:id/lessons`, `GET/PATCH …/lessons/:id`, `POST …/lessons/:id/{publish,unpublish}`. Only teachers of a current-term section of the course (404 otherwise); archived courses are read-only                                                                                                   |
 | Calendar (`@Roles('admin')`)         | `GET /admin/terms/:termId/calendar` (term, grading periods, events, offerings), `PATCH /admin/terms/:termId` (start/end dates; refused while a period or event would fall outside), `PUT …/grading-periods` (whole list), `POST …/events`, `PUT …/events/:id`, `POST …/events/:id/remove`. Every change locks the term row                                                                                                                                                                                                                                                       |
@@ -118,6 +118,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   `/access-denied` (X04), shared `/notifications` `/profile` `/security` `/search`.
 - Built screens: H01–H05 (sign-in, MFA step, register, confirm email, forgot/reset), H07 profile, H08 security
   (MFA setup with QR, recovery codes, devices list), A02/A16 user management, A03 user details, A04 roles (read-only),
+  A06 course record (`pages/admin/catalog/CourseRecordPage.tsx`, `/admin/courses/$courseId`, linked from the course
+  code; shares `CourseFields` and `ArchiveDialog` with A05),
   A05 course management (Courses / Programs / Terms tabs in `pages/admin/catalog/`; `components/FormDialog.tsx` wraps
   the shadcn Dialog, `afterSave` moves focus to an announcement when the row disappears), A07 section management and
   section details (`pages/admin/sections/`, routes `/admin/sections` and `/admin/sections/$sectionId`), T02 My Classes
@@ -154,9 +156,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
 - **Phase 0** done. **Phase 1 (identity and access)** done except H09 search, moved to Phase 2.
 - **Phase 2** in progress: slices 2a (course catalog, A05), 2b (sections, teaching assignments, enrollment; A07,
   T02, S02), 2c (course content: objectives, modules, lessons; T04–T06) and 2d (academic calendar A08, class
-  overview T03), 2e (resources with approval: T07, A10, A11), 2f (student views S03, S05, S06) and H09 search done.
-  Remaining in Phase 2: A06 course offering record; S04 adaptive pathway belongs with Phase 4.
-- Test counts after code splitting: API 141, web 135, schema 50, tokens 5. Check `git log` for the latest commit.
+  overview T03), 2e (resources with approval: T07, A10, A11), 2f (student views S03, S05, S06), H09 search and A06 course record done.
+  Phase 2 is complete apart from S04 (adaptive pathway), which belongs with Phase 4.
+- Test counts after A06: API 143, web 142, schema 50, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -222,9 +224,9 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    a2. Done: sections, teaching assignments and enrollments; A07, T02, S02.
    b. Done (slice 2c): learning objectives, modules, lessons with draft/publish rules; T04–T06.
    b2. Done (slice 2d): A08 academic calendar (term dates, grading periods, events) and T03 class overview.
-   Open: archiving a course with live sections should warn or refuse; unpublishing may need a reason once students
+   Open: archiving a course with live sections only warns (on A06; A05's dialog does not know the count); unpublishing may need a reason once students
    have progress (consider adding `module.unpublished`/`lesson.unpublished` to `REASON_REQUIRED_ACTIONS`); moving a
-   term that has started could require a reason too (`term.dates_changed`); A06 course offering record not built.
+   term that has started could require a reason too (`term.dates_changed`).
    c. Done (slice 2e): resources with approval (T07, A10, A11). Open: OOXML files are only checked for the zip
    header (verify `[Content_Types].xml` and cap extraction before Phase 6 parses them); downloads are not audited;
    teachers of a course see each other's drafts (by design); MinIO replaces local disk for deployment.
@@ -235,7 +237,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    e. Done: H09 permission-scoped search. Lesson text is matched with ILIKE (no index): add a `pg_trgm` index if it
    gets slow. When Phase 4 locks modules (requires-previous, mastery), hide locked lessons from search as well.
    f. Done: route-level code splitting.
-   g. **Next:** A06 course offering record, then Phase 3 (assessments).
+   g. Done: A06 course offering and curriculum record (read-only summary plus the course's edit and archive).
+   h. **Next:** Phase 3 (assessments) — read BUILD_PLAN's Phase 3 screens and their wireframe text first.
 2. Before Phase 6: get Docker working or install pgvector on the local Postgres.
 3. Phase 7 items already recorded: SMTP mailer, session/token cleanup job, deployment headers, `log_statement` off
    while migrations set the role password.

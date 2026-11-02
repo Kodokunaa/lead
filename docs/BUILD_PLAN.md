@@ -176,7 +176,11 @@ H09 permission-scoped search — done:
 
 Route-level code splitting — done: each signed-in page is its own chunk, loaded when its route first opens (main bundle 667 KB → 443 KB, under Vite's 500 KB warning). A page that cannot load is tried once more, then offers a reload.
 
-Next: the A06 course offering record, then Phase 3 (assessments).
+A06 course offering and curriculum record — done:
+
+- From the course list, an administrator opens a course's record: its details (edited in place, same rules as the A05 dialog), status with archive/restore (the archive dialog says how many sections this term keep running), who edits its content, how many objectives, modules and lessons exist and are published, how many resources are approved or waiting, and every term's sections with their teachers and seats, newest term first.
+
+Next: Phase 3 (assessments).
 
 ## Seed data
 

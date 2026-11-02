@@ -10,6 +10,7 @@ export { UserDetailsPage } from '../pages/admin/UserDetailsPage';
 export { UsersPage } from '../pages/admin/UsersPage';
 export { CalendarPage } from '../pages/admin/calendar/CalendarPage';
 export { CatalogPage } from '../pages/admin/catalog/CatalogPage';
+export { CourseRecordPage } from '../pages/admin/catalog/CourseRecordPage';
 export { ResourceLibraryPage } from '../pages/admin/resources/ResourceLibraryPage';
 export { ResourceReviewPage } from '../pages/admin/resources/ResourceReviewPage';
 export { SectionDetailsPage } from '../pages/admin/sections/SectionDetailsPage';

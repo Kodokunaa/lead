@@ -142,3 +142,42 @@ export type CourseListResponse = z.infer<typeof courseListResponseSchema>;
 
 /** Archiving takes a course out of new sections; existing records stay. */
 export const courseArchiveSchema = z.object({ reason: reasonSchema });
+
+/** A06 Course offering and curriculum record: the course and where it is taught. */
+export const courseOfferingSchema = z.object({
+  term: z.object({
+    id: z.uuid(),
+    schoolYear: z.string(),
+    semester: z.enum(SEMESTERS),
+    current: z.boolean(),
+  }),
+  sections: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      capacity: z.number().int(),
+      enrolled: z.number().int(),
+      teachers: z.array(z.object({ id: z.uuid(), displayName: z.string() })),
+    }),
+  ),
+});
+export type CourseOffering = z.infer<typeof courseOfferingSchema>;
+
+export const courseRecordSchema = z.object({
+  course: courseSchema,
+  /** Terms with sections of this course, newest first. */
+  offerings: z.array(courseOfferingSchema),
+  content: z.object({
+    objectives: z.number().int(),
+    modules: z.number().int(),
+    publishedModules: z.number().int(),
+    lessons: z.number().int(),
+    publishedLessons: z.number().int(),
+  }),
+  resources: z.object({
+    total: z.number().int(),
+    approved: z.number().int(),
+    pending: z.number().int(),
+  }),
+});
+export type CourseRecord = z.infer<typeof courseRecordSchema>;

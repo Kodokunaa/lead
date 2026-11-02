@@ -167,6 +167,8 @@ describe('permission-scoped search (integration)', () => {
     expect(titles(response, 'resource')).toEqual([`${word} guide A`, `${word} notes A`]);
     const draft = response.results.find((result) => result.title === `${word} draft A`);
     expect(draft).toMatchObject({ access: 'Draft', target: { screen: 'T06' } });
+    const notes = response.results.find((result) => result.title === `${word} notes A`);
+    expect(notes?.access).toBe('Pending review');
   });
 
   it('finds records across the college for administrators', async () => {
