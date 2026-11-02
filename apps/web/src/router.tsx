@@ -21,6 +21,11 @@ import {
   CalendarPage,
   CatalogPage,
   ClassOverviewPage,
+  AssessmentQuestionsPage,
+  AssessmentReviewPage,
+  AssessmentRubricPage,
+  AssessmentSettingsPage,
+  AssessmentsPage,
   ContentHomePage,
   CourseRecordPage,
   CourseOutlinePage,
@@ -115,6 +120,34 @@ function CalendarRoute(): ReactElement {
   return <CalendarPage termId={termId} />;
 }
 
+function AssessmentSettingsRoute(): ReactElement {
+  const assessmentId = assessmentSettingsRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <AssessmentSettingsPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
+function AssessmentQuestionsRoute(): ReactElement {
+  const assessmentId = assessmentQuestionsRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <AssessmentQuestionsPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
+function AssessmentRubricRoute(): ReactElement {
+  const assessmentId = assessmentRubricRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <AssessmentRubricPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
+function AssessmentReviewRoute(): ReactElement {
+  const assessmentId = assessmentReviewRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <AssessmentReviewPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
 function ResourcesRoute(): ReactElement {
   const courseId = resourcesRoute.useParams({
     select: (params: { courseId: string }) => params.courseId,
@@ -198,6 +231,7 @@ const BUILT_PAGES: Readonly<Partial<Record<string, RouteComponent>>> = {
   '/admin/sections': SectionsPage,
   '/teacher/classes': MyClassesPage,
   '/teacher/content': ContentHomePage,
+  '/teacher/assessments': AssessmentsPage,
   '/student/courses': MyCoursesPage,
 };
 
@@ -314,6 +348,34 @@ const calendarRoute = createRoute({
   component: CalendarRoute,
 });
 
+const assessmentSettingsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/assessments/$assessmentId',
+  beforeLoad: requireRole('teacher'),
+  component: AssessmentSettingsRoute,
+});
+
+const assessmentQuestionsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/assessments/$assessmentId/questions',
+  beforeLoad: requireRole('teacher'),
+  component: AssessmentQuestionsRoute,
+});
+
+const assessmentRubricRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/assessments/$assessmentId/rubric',
+  beforeLoad: requireRole('teacher'),
+  component: AssessmentRubricRoute,
+});
+
+const assessmentReviewRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/assessments/$assessmentId/review',
+  beforeLoad: requireRole('teacher'),
+  component: AssessmentReviewRoute,
+});
+
 const resourcesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/content/$courseId/resources',
@@ -399,6 +461,10 @@ const extraSignedInRoutes = [
   calendarRoute,
   courseRecordRoute,
   resourcesRoute,
+  assessmentSettingsRoute,
+  assessmentQuestionsRoute,
+  assessmentRubricRoute,
+  assessmentReviewRoute,
   resourceLibraryRoute,
   resourceReviewRoute,
   studentCourseRoute,

@@ -17,9 +17,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import {
   ACCOUNT_STATUSES,
+  ASSESSMENT_KINDS,
   AUDIT_OUTCOMES,
   CALENDAR_EVENT_KINDS,
   CONTENT_STATUSES,
+  DIFFICULTIES,
+  QUESTION_KINDS,
   RESOURCE_STATUSES,
   ENROLLMENT_STATUSES,
   ROLES,
@@ -534,6 +537,163 @@ export const resourceVersions = pgTable(
 export type ResourceRow = typeof resources.$inferSelect;
 export type ResourceVersionRow = typeof resourceVersions.$inferSelect;
 export type LessonRow = typeof lessons.$inferSelect;
+
+export const assessmentKindEnum = pgEnum('assessment_kind', ASSESSMENT_KINDS);
+export const questionKindEnum = pgEnum('question_kind', QUESTION_KINDS);
+export const difficultyEnum = pgEnum('difficulty', DIFFICULTIES);
+
+/**
+ * A quiz, examination, assignment or project of one class (wireframes T08–T12). Dates are the
+ * class's, so the assessment belongs to the section, not the course.
+ */
+export const assessments = pgTable(
+  'assessments',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    sectionId: uuid('section_id')
+      .notNull()
+      .references(() => classSections.id, { onDelete: 'restrict' }),
+    kind: assessmentKindEnum('kind').notNull(),
+    title: text('title').notNull(),
+    instructions: text('instructions').notNull().default(''),
+    opensAt: timestamp('opens_at', { withTimezone: true }),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    /** Null means untimed. */
+    timeLimitMinutes: integer('time_limit_minutes'),
+    maxAttempts: integer('max_attempts').notNull().default(1),
+    status: contentStatusEnum('status').notNull().default('draft'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('assessments_section_idx').on(table.sectionId),
+    check(
+      'assessments_time_limit_check',
+      sql`${table.timeLimitMinutes} is null or ${table.timeLimitMinutes} between 1 and 600`,
+    ),
+    check('assessments_attempts_check', sql`${table.maxAttempts} between 1 and 10`),
+    check(
+      'assessments_window_check',
+      sql`${table.opensAt} is null or ${table.dueAt} is null or ${table.dueAt} > ${table.opensAt}`,
+    ),
+    // Backstop for the service's publishing rule: a published assessment has both dates.
+    check(
+      'assessments_publishable_check',
+      sql`${table.status} <> 'published' or (${table.opensAt} is not null and ${table.dueAt} is not null)`,
+    ),
+  ],
+);
+
+/** Which of the course's objectives an assessment measures. */
+export const assessmentObjectives = pgTable(
+  'assessment_objectives',
+  {
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'cascade' }),
+    objectiveId: uuid('objective_id')
+      .notNull()
+      .references(() => learningObjectives.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assessmentId, table.objectiveId] }),
+    index('assessment_objectives_objective_idx').on(table.objectiveId),
+  ],
+);
+
+/** A question of a quiz or examination (T10), mapped to one of the assessment's objectives. */
+export const assessmentQuestions = pgTable(
+  'assessment_questions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    kind: questionKindEnum('kind').notNull(),
+    prompt: text('prompt').notNull(),
+    points: integer('points').notNull(),
+    difficulty: difficultyEnum('difficulty').notNull().default('moderate'),
+    objectiveId: uuid('objective_id').references(() => learningObjectives.id, {
+      onDelete: 'restrict',
+    }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('assessment_questions_assessment_idx').on(table.assessmentId, table.position),
+    check('assessment_questions_points_check', sql`${table.points} between 1 and 100`),
+  ],
+);
+
+/** The answer choices of a multiple-choice question; exactly one is correct. */
+export const questionChoices = pgTable(
+  'question_choices',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => assessmentQuestions.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    text: text('text').notNull(),
+    correct: boolean('correct').notNull().default(false),
+  },
+  (table) => [
+    index('question_choices_question_idx').on(table.questionId, table.position),
+    uniqueIndex('question_choices_one_correct_idx')
+      .on(table.questionId)
+      .where(sql`${table.correct}`),
+  ],
+);
+
+/** A rubric criterion of an assignment or project (T11). */
+export const rubricCriteria = pgTable(
+  'rubric_criteria',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    name: text('name').notNull(),
+  },
+  (table) => [index('rubric_criteria_assessment_idx').on(table.assessmentId, table.position)],
+);
+
+/** One level of a criterion, e.g. "Strong / 4" with what it looks like. */
+export const rubricLevels = pgTable(
+  'rubric_levels',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    criterionId: uuid('criterion_id')
+      .notNull()
+      .references(() => rubricCriteria.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    label: text('label').notNull(),
+    points: integer('points').notNull(),
+    descriptor: text('descriptor').notNull().default(''),
+  },
+  (table) => [
+    index('rubric_levels_criterion_idx').on(table.criterionId, table.position),
+    uniqueIndex('rubric_levels_points_idx').on(table.criterionId, table.points),
+    check('rubric_levels_points_check', sql`${table.points} between 0 and 100`),
+  ],
+);
+
+export type AssessmentRow = typeof assessments.$inferSelect;
+export type QuestionRow = typeof assessmentQuestions.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
 export type TermRow = typeof academicTerms.$inferSelect;

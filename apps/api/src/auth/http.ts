@@ -25,6 +25,23 @@ export function parseBody<T extends z.ZodType>(
   return result.data;
 }
 
+/**
+ * Like parseBody, but answers with the schema's own message for the first problem when the
+ * schema wrote one for the user (custom checks such as "Mark exactly one choice as correct").
+ * Zod's built-in messages are technical, so those fall back to `message`.
+ */
+export function parseBodyExplained<T extends z.ZodType>(
+  schema: T,
+  body: unknown,
+  message: string,
+): z.output<T> {
+  const result = schema.safeParse(body);
+  if (result.success) return result.data;
+  const issue = result.error.issues[0];
+  const explained = issue && (issue.code === 'custom' || /^[A-Z].*\.$/.test(issue.message));
+  throw new BadRequestException(explained ? issue.message : message);
+}
+
 export function clientInfo(request: Request): ClientInfo {
   const userAgent = request.headers['user-agent'];
   return {

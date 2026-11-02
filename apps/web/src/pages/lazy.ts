@@ -64,6 +64,22 @@ export const ResourcesPage = page(() =>
   import('./teacher/content/ResourcesPage').then((m) => m.ResourcesPage),
 );
 
+export const AssessmentsPage = page(() =>
+  import('./teacher/assessments/AssessmentsPage').then((m) => m.AssessmentsPage),
+);
+export const AssessmentSettingsPage = page(() =>
+  import('./teacher/assessments/SettingsPage').then((m) => m.AssessmentSettingsPage),
+);
+export const AssessmentQuestionsPage = page(() =>
+  import('./teacher/assessments/QuestionsPage').then((m) => m.AssessmentQuestionsPage),
+);
+export const AssessmentRubricPage = page(() =>
+  import('./teacher/assessments/RubricPage').then((m) => m.AssessmentRubricPage),
+);
+export const AssessmentReviewPage = page(() =>
+  import('./teacher/assessments/ReviewPage').then((m) => m.AssessmentReviewPage),
+);
+
 // ---------- Students
 export const MyCoursesPage = page(() =>
   import('./student/MyCoursesPage').then((m) => m.MyCoursesPage),

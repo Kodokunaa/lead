@@ -180,7 +180,12 @@ A06 course offering and curriculum record — done:
 
 - From the course list, an administrator opens a course's record: its details (edited in place, same rules as the A05 dialog), status with archive/restore (the archive dialog says how many sections this term keep running), who edits its content, how many objectives, modules and lessons exist and are published, how many resources are approved or waiting, and every term's sections with their teachers and seats, newest term first.
 
-Next: Phase 3 (assessments).
+Slice 3a (assessment builder T08–T12) — done:
+
+- Teachers create quizzes, examinations, assignments and projects for one of their classes this term. Settings (T09): title, instructions, opening and due date in Philippine time, time limit (quizzes and examinations), allowed attempts, and the course objectives measured. Quizzes and examinations get multiple-choice (exactly one correct answer) and written questions, each with points, difficulty and one of the assessment's objectives (T10); assignments and projects get a rubric of criteria and levels (T11).
+- T12 lists every publication check (objectives, questions or rubric, dates in the future, AI off during attempts) with a link to fix it; publishing is refused with the first failing check. Published assessments are read-only until unpublished. Every change is audited and locks the assessment row (tests force two questions added at once, and an administrator removing the teacher while an assessment is created, which deadlocked before the section was locked first).
+
+Next: slice 3b (student attempts S07–S11).
 
 ## Seed data
 

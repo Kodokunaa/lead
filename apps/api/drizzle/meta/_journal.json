@@ -99,6 +99,13 @@
       "when": 1793571229525,
       "tag": "0013_course_resources",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793592363365,
+      "tag": "0014_assessments",
+      "breakpoints": true
     }
   ]
 }

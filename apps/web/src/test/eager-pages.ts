@@ -27,3 +27,8 @@ export { ContentHomePage, CourseOutlinePage } from '../pages/teacher/content/Cou
 export { LessonEditorPage } from '../pages/teacher/content/LessonEditorPage';
 export { ModuleEditorPage } from '../pages/teacher/content/ModuleEditorPage';
 export { ResourcesPage } from '../pages/teacher/content/ResourcesPage';
+export { AssessmentsPage } from '../pages/teacher/assessments/AssessmentsPage';
+export { AssessmentSettingsPage } from '../pages/teacher/assessments/SettingsPage';
+export { AssessmentQuestionsPage } from '../pages/teacher/assessments/QuestionsPage';
+export { AssessmentRubricPage } from '../pages/teacher/assessments/RubricPage';
+export { AssessmentReviewPage } from '../pages/teacher/assessments/ReviewPage';
