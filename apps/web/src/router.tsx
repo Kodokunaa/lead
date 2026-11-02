@@ -7,6 +7,7 @@ import {
   redirect,
   useLocation,
   type AnyRoute,
+  type RouteComponent,
   type RouterHistory,
 } from '@tanstack/react-router';
 import type { CurrentUser } from '@lead/schema';
@@ -16,31 +17,32 @@ import { useSession } from './auth/session';
 import { ForgotPasswordPage, RegisterPage, TokenPasswordPage } from './pages/auth/AccountPages';
 import { SignInPage } from './pages/auth/SignInPage';
 import { AccessDeniedPage } from './pages/AccessDeniedPage';
-import { CatalogPage } from './pages/admin/catalog/CatalogPage';
-import { SectionDetailsPage } from './pages/admin/sections/SectionDetailsPage';
-import { SectionsPage } from './pages/admin/sections/SectionsPage';
 import {
+  CalendarPage,
+  CatalogPage,
+  ClassOverviewPage,
+  ContentHomePage,
+  CourseOutlinePage,
+  LessonEditorPage,
+  ModuleEditorPage,
+  MyClassesPage,
+  MyCoursesPage,
+  ProfilePage,
+  ResourceLibraryPage,
+  ResourceReviewPage,
+  ResourcesPage,
+  RolesPage,
+  SearchPage,
+  SectionDetailsPage,
+  SectionsPage,
+  SecurityPage,
   StudentCoursePage,
   StudentLessonPage,
   StudentResourcePage,
-} from './pages/student/CoursePages';
-import { MyCoursesPage } from './pages/student/MyCoursesPage';
-import { ContentHomePage, CourseOutlinePage } from './pages/teacher/content/CourseOutlinePage';
-import { LessonEditorPage } from './pages/teacher/content/LessonEditorPage';
-import { ModuleEditorPage } from './pages/teacher/content/ModuleEditorPage';
-import { CalendarPage } from './pages/admin/calendar/CalendarPage';
-import { SearchPage } from './pages/SearchPage';
-import { ResourceLibraryPage } from './pages/admin/resources/ResourceLibraryPage';
-import { ResourceReviewPage } from './pages/admin/resources/ResourceReviewPage';
-import { ResourcesPage } from './pages/teacher/content/ResourcesPage';
-import { ClassOverviewPage } from './pages/teacher/ClassOverviewPage';
-import { MyClassesPage } from './pages/teacher/MyClassesPage';
-import { RolesPage } from './pages/admin/RolesPage';
-import { UserDetailsPage } from './pages/admin/UserDetailsPage';
-import { UsersPage } from './pages/admin/UsersPage';
+  UserDetailsPage,
+  UsersPage,
+} from './pages/lazy';
 import { PlaceholderPage } from './pages/PlaceholderPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { SecurityPage } from './pages/SecurityPage';
 import { AppShell } from './shell/AppShell';
 
 export interface RouterContext {
@@ -181,7 +183,7 @@ function AccessDeniedRoute() {
 }
 
 /** Screens that are built; every other navigation entry still shows its placeholder. */
-const BUILT_PAGES: Readonly<Partial<Record<string, () => ReactElement>>> = {
+const BUILT_PAGES: Readonly<Partial<Record<string, RouteComponent>>> = {
   '/admin/users': UsersPage,
   '/admin/roles': RolesPage,
   '/admin/courses': CatalogPage,

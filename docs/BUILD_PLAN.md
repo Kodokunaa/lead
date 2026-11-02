@@ -174,7 +174,9 @@ H09 permission-scoped search — done:
 - One search box (top bar or `/search?q=`) for every role, finding only what that person may open: students their classes, published lessons (by title or text) and approved resources; teachers their current-term classes and those courses' modules, lessons and resources (drafts included, archived courses left out); administrators accounts, courses, sections and resources. Each result says where it sits and why it is visible, and opens the right screen.
 - Wildcards are searched as plain text, at most 10 results per kind (with a note when there are more), 30 searches a minute per address.
 
-Next: the A06 course offering record, route-level code splitting, then Phase 3 (assessments).
+Route-level code splitting — done: each signed-in page is its own chunk, loaded when its route first opens (main bundle 667 KB → 443 KB, under Vite's 500 KB warning). A page that cannot load is tried once more, then offers a reload.
+
+Next: the A06 course offering record, then Phase 3 (assessments).
 
 ## Seed data
 

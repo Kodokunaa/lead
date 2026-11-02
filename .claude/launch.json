@@ -12,6 +12,21 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@lead/api", "dev"],
       "port": 3000
+    },
+    {
+      "name": "web-build",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@lead/web",
+        "exec",
+        "vite",
+        "preview",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
     }
   ]
 }

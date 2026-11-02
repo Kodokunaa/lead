@@ -156,7 +156,7 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   T02, S02), 2c (course content: objectives, modules, lessons; T04–T06) and 2d (academic calendar A08, class
   overview T03), 2e (resources with approval: T07, A10, A11), 2f (student views S03, S05, S06) and H09 search done.
   Remaining in Phase 2: A06 course offering record; S04 adaptive pathway belongs with Phase 4.
-- Test counts after H09: API 141, web 131, schema 50, tokens 5. Check `git log` for the latest commit.
+- Test counts after code splitting: API 141, web 135, schema 50, tokens 5. Check `git log` for the latest commit.
 - GitHub: https://github.com/Kodokunaa/lead (public — `reference/` must never be committed). CI runs format:check,
   build, lint, typecheck, test with a pgvector service.
 
@@ -170,8 +170,13 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
   deployment security headers not set (CSP etc. listed in BUILD_PLAN Phase 7 checklist).
 - Dashboards (S01, T01, A01) and most role pages are placeholders. H06 notifications and H09 search not built.
 - A04 is read-only (three fixed roles; no custom permission model yet).
-- Web bundle is ~659 KB (193 KB gzip), over Vite's 500 KB warning (a warning, not a failure) — add route-level code
-  splitting (`lazyRouteComponent`) soon.
+- **Code splitting**: every signed-in page loads per route through `pages/lazy.ts` (`lazyPage` in
+  `pages/lazy-page.tsx`: React `lazy`, its own Suspense and a reload-on-failure boundary; one retry). Main chunk
+  ~443 KB (138 KB gzip). Add new pages to `lazy.ts` **and** `test/eager-pages.ts`: tests import pages eagerly through a
+  Vitest alias, and `pages/lazy-pages.test.ts` fails if the two lists differ. Not `lazyRouteComponent` (pages are
+  rendered by route wrappers with props; React warned) and not one Suspense around `<Outlet/>` (it hid pages during
+  router pauses and lost focus). `.claude/launch.json` `web-build` serves the production build on 5173 (the API's
+  cookie origin), so stop `web` first.
 - The wireframe PDF's text can be extracted with pdf.js (`pdfjs-dist` in a scratch folder, `getTextContent()` per
   page): page N is the Nth screen in ID order (H01–H09, S01–S19, T01–T28, A01–A19, X01–X06), e.g. page 32 = T04.
 - `ParseUUIDPipe({ version: '4' })` on admin/me routes: switching ids to UUIDv7 would break them.
@@ -229,8 +234,8 @@ files to `apps/api/storage/outbox` (`MailModule`, `MAILER` token); there is no S
    them) once programs exist — confirm the student ID format with the user.
    e. Done: H09 permission-scoped search. Lesson text is matched with ILIKE (no index): add a `pg_trgm` index if it
    gets slow. When Phase 4 locks modules (requires-previous, mastery), hide locked lessons from search as well.
-   f. **Next:** A06 course offering record and route-level code splitting (bundle ~660 KB). Then Phase 3
-   (assessments).
+   f. Done: route-level code splitting.
+   g. **Next:** A06 course offering record, then Phase 3 (assessments).
 2. Before Phase 6: get Docker working or install pgvector on the local Postgres.
 3. Phase 7 items already recorded: SMTP mailer, session/token cleanup job, deployment headers, `log_statement` off
    while migrations set the role password.

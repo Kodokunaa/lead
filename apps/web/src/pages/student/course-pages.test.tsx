@@ -5,7 +5,7 @@ import type {
   StudentResource,
   StudentResourceView,
 } from '@lead/schema';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeUser, installFakeApi, type FakeApi } from '../../test/fake-api';
@@ -169,7 +169,10 @@ describe('student course pages (S03, S05, S06)', () => {
     expect(screen.getByText(/<b>not bold<\/b>/)).toBeInTheDocument();
     expect(screen.getByText(/<b>not bold<\/b>/).querySelector('b')).toBeNull();
     expect(screen.getByText('1. Normal forms')).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('heading', { name: 'Lesson: Normal forms' })).toHaveFocus();
+    // The page focuses its heading in an effect, just after the heading first appears.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Lesson: Normal forms' })).toHaveFocus(),
+    );
     expect(screen.queryByRole('link', { name: /Previous lesson/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Next lesson: Worked examples' })).toBeInTheDocument();
   });
