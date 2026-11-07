@@ -827,6 +827,8 @@ export const grades = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
     submissionId: uuid('submission_id').references(() => submissions.id, { onDelete: 'restrict' }),
+    /** Quizzes and examinations: the attempt graded (assignments use submission_id). */
+    attemptId: uuid('attempt_id').references(() => attempts.id, { onDelete: 'restrict' }),
     score: integer('score').notNull(),
     maxPoints: integer('max_points').notNull(),
     feedback: text('feedback').notNull().default(''),
@@ -839,7 +841,9 @@ export const grades = pgTable(
   },
   (table) => [
     uniqueIndex('grades_student_idx').on(table.assessmentId, table.studentId),
+    index('grades_attempt_idx').on(table.attemptId),
     check('grades_score_check', sql`${table.score} between 0 and ${table.maxPoints}`),
+    check('grades_target_check', sql`${table.submissionId} is null or ${table.attemptId} is null`),
     check(
       'grades_released_check',
       sql`(${table.status} = 'released') = (${table.releasedAt} is not null)`,
@@ -862,6 +866,24 @@ export const gradeRubricScores = pgTable(
       .references(() => rubricLevels.id, { onDelete: 'restrict' }),
   },
   (table) => [primaryKey({ columns: [table.gradeId, table.criterionId] })],
+);
+
+/** Points a grade gives each written question of a quiz or examination. */
+export const gradeQuestionScores = pgTable(
+  'grade_question_scores',
+  {
+    gradeId: uuid('grade_id')
+      .notNull()
+      .references(() => grades.id, { onDelete: 'cascade' }),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => assessmentQuestions.id, { onDelete: 'restrict' }),
+    points: integer('points').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.gradeId, table.questionId] }),
+    check('grade_question_scores_points_check', sql`${table.points} between 0 and 100`),
+  ],
 );
 
 export type SubmissionRow = typeof submissions.$inferSelect;

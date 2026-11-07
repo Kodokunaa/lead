@@ -138,4 +138,12 @@ export interface AttemptResult {
   readonly attemptsUsed: number;
   readonly maxAttempts: number;
   readonly canRetake: boolean;
+  /** The teacher's released grade of this attempt, written answers included. */
+  readonly grade: {
+    readonly score: number;
+    readonly maxPoints: number;
+    readonly feedback: string;
+    readonly releasedAt: string;
+    readonly written: readonly { position: number; points: number; maxPoints: number }[];
+  } | null;
 }

@@ -73,14 +73,35 @@ export function AttemptResultPage({ attemptId }: { attemptId: string }) {
                 {percent !== null && ` (${percent}%)`}
               </p>
             )}
-            {data.pendingPoints > 0 && (
-              <p>
-                Written answers: {countOf(data.pendingPoints, 'point')} awaiting teacher grading
-              </p>
+            {data.grade ? (
+              <div className="flex flex-col gap-1 rounded-xl border border-green-200 bg-green-50 p-3">
+                <p className="text-base font-semibold">
+                  Total graded by your teacher: {data.grade.score} / {data.grade.maxPoints}
+                </p>
+                {data.grade.written.map((item) => (
+                  <p key={item.position}>
+                    Written question {item.position}: {item.points} / {item.maxPoints}
+                  </p>
+                ))}
+                {data.grade.feedback && (
+                  <p className="break-words whitespace-pre-wrap">Feedback: {data.grade.feedback}</p>
+                )}
+                <p className="text-muted-foreground">
+                  Released {formatDateTime(data.grade.releasedAt)}
+                </p>
+              </div>
+            ) : (
+              <>
+                {data.pendingPoints > 0 && (
+                  <p>
+                    Written answers: {countOf(data.pendingPoints, 'point')} awaiting teacher grading
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  This is not your official grade: your teacher reviews and releases final grades.
+                </p>
+              </>
             )}
-            <p className="text-muted-foreground">
-              This is not your official grade: your teacher reviews and releases final grades.
-            </p>
           </CardContent>
         </Card>
 

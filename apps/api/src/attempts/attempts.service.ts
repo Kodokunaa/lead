@@ -27,9 +27,12 @@ import {
   classSections,
   courses,
   enrollments,
+  gradeQuestionScores,
+  grades,
   learningObjectives,
   questionChoices,
   submissions,
+  users,
   type AssessmentRow,
   type AttemptRow,
   type UserRow,
@@ -41,6 +44,8 @@ import { isAnswered, scoreAttempt, type ScoredQuestion } from './attempt-scoring
 export interface Taker {
   readonly student: UserRow;
   readonly client: ClientInfo;
+  /** A teacher whose grading view closed an attempt whose time had run out. */
+  readonly closedBy?: UserRow;
 }
 
 interface Visible {
@@ -376,6 +381,7 @@ export class AttemptsService {
       .returning();
     if (!done) throw new ConflictException('This attempt was already submitted.');
     await this.record(tx, taker, 'attempt.submitted', attempt.id, {
+      ...(taker.closedBy ? { closedByTeacher: taker.closedBy.id } : {}),
       assessmentId: attempt.assessmentId,
       number: attempt.number,
       score: scoring.score,
@@ -386,6 +392,29 @@ export class AttemptsService {
   }
 
   /** The student's attempts at an assessment, submitting any whose time has run out. */
+  /**
+   * Submits a student's attempts whose time ran out, as the student's own reads do. For a
+   * teacher opening an attempt to grade it before the student has come back.
+   */
+  async closeExpired(
+    tx: DbExecutor,
+    studentId: string,
+    assessmentId: string,
+    teacher: { readonly user: UserRow; readonly client: ClientInfo },
+  ): Promise<void> {
+    const [[student], [assessment]] = await Promise.all([
+      tx.select().from(users).where(eq(users.id, studentId)),
+      tx.select().from(assessments).where(eq(assessments.id, assessmentId)),
+    ]);
+    if (!student || !assessment) return;
+    // Audited as the student's attempt, naming the teacher whose view closed it.
+    await this.finalizeExpired(tx, student, assessment, {
+      student,
+      client: teacher.client,
+      closedBy: teacher.user,
+    });
+  }
+
   private async finalizeExpired(
     tx: DbExecutor,
     student: UserRow,
@@ -555,6 +584,42 @@ export class AttemptsService {
       attemptsUsed: used,
       maxAttempts: assessment.maxAttempts,
       canRetake: used < assessment.maxAttempts && new Date() < assessment.dueAt!,
+      grade: await this.releasedGrade(tx, attempt),
+    };
+  }
+
+  /** The teacher's grade of this attempt, once released (written answers included). */
+  private async releasedGrade(
+    tx: DbExecutor,
+    attempt: AttemptRow,
+  ): Promise<AttemptResult['grade']> {
+    const [grade] = await tx
+      .select()
+      .from(grades)
+      .where(
+        and(
+          eq(grades.attemptId, attempt.id),
+          eq(grades.studentId, attempt.studentId),
+          eq(grades.status, 'released'),
+        ),
+      );
+    if (!grade) return null;
+    const written = await tx
+      .select({
+        position: assessmentQuestions.position,
+        points: gradeQuestionScores.points,
+        maxPoints: assessmentQuestions.points,
+      })
+      .from(gradeQuestionScores)
+      .innerJoin(assessmentQuestions, eq(assessmentQuestions.id, gradeQuestionScores.questionId))
+      .where(eq(gradeQuestionScores.gradeId, grade.id))
+      .orderBy(asc(assessmentQuestions.position));
+    return {
+      score: grade.score,
+      maxPoints: grade.maxPoints,
+      feedback: grade.feedback,
+      releasedAt: grade.releasedAt!.toISOString(),
+      written,
     };
   }
 

@@ -5,21 +5,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type {
-  AuditAction,
-  GradeInput,
-  GradingQueue,
-  GradingView,
-  QueueItem,
-  QueueStatus,
+import {
+  SAVE_GRACE_SECONDS,
+  usesQuestions,
+  type GradeInput,
+  type GradingQueue,
+  type GradingView,
+  type QueueItem,
+  type QueueStatus,
 } from '@lead/schema';
 import { and, asc, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
-import type { ClientInfo } from '../auth/auth.service';
 import { DATABASE, type Database, type DbExecutor } from '../database/database.module';
 import {
   academicTerms,
+  assessmentQuestions,
   assessments,
+  attempts,
   classSections,
   courses,
   enrollments,
@@ -29,18 +31,18 @@ import {
   teachingAssignments,
   users,
   type AssessmentRow,
+  type AttemptRow,
   type GradeRow,
   type SubmissionRow,
   type UserRow,
 } from '../database/schema';
 import { ResourceStorage } from '../resources/resource-files';
 import type { OpenedFile } from '../resources/resources.service';
-import { loadRubric, rubricTotal, SUBMISSION_KINDS, toSubmissionFile } from './submissions.service';
+import { sortedRecord, writeGrade, type Grader } from './grade-writer';
+import { QuizGradingService, type QuizContext } from './quiz-grading.service';
+import { loadRubric, rubricTotal, toSubmissionFile } from './submissions.service';
 
-export interface Grader {
-  readonly teacher: UserRow;
-  readonly client: ClientInfo;
-}
+export type { Grader } from './grade-writer';
 
 interface Taught {
   readonly assessment: AssessmentRow;
@@ -69,6 +71,7 @@ export class GradingService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly audit: AuditService,
     private readonly storage: ResourceStorage,
+    private readonly quizzes: QuizGradingService,
   ) {}
 
   /** T13: every enrolled student's latest submission, or a missing one past the due date. */
@@ -91,9 +94,32 @@ export class GradingService {
       .orderBy(asc(courses.code), asc(classSections.name));
     if (taught.length === 0) return { classes, items: [] };
 
-    const assessmentIds = taught.map((row) => row.assessment.id);
-    const sectionIds = [...new Set(taught.map((row) => row.assessment.sectionId))];
-    const [students, submitted, gradeRows] = await Promise.all([
+    // Quizzes need a teacher only when they have written questions.
+    const quizIds = taught
+      .filter((row) => usesQuestions(row.assessment.kind))
+      .map((row) => row.assessment.id);
+    const withWritten = new Set(
+      quizIds.length === 0
+        ? []
+        : (
+            await this.db
+              .selectDistinct({ id: assessmentQuestions.assessmentId })
+              .from(assessmentQuestions)
+              .where(
+                and(
+                  inArray(assessmentQuestions.assessmentId, quizIds),
+                  eq(assessmentQuestions.kind, 'written'),
+                ),
+              )
+          ).map((row) => row.id),
+    );
+    const graded = taught.filter(
+      (row) => !usesQuestions(row.assessment.kind) || withWritten.has(row.assessment.id),
+    );
+    if (graded.length === 0) return { classes, items: [] };
+    const assessmentIds = graded.map((row) => row.assessment.id);
+    const sectionIds = [...new Set(graded.map((row) => row.assessment.sectionId))];
+    const [students, submitted, attemptRows, gradeRows] = await Promise.all([
       this.db
         .select({ sectionId: enrollments.sectionId, id: users.id, name: users.displayName })
         .from(enrollments)
@@ -110,19 +136,24 @@ export class GradingService {
           ),
         )
         .orderBy(desc(submissions.number)),
+      this.db
+        .select()
+        .from(attempts)
+        .where(inArray(attempts.assessmentId, assessmentIds))
+        .orderBy(desc(attempts.number)),
       this.db.select().from(grades).where(inArray(grades.assessmentId, assessmentIds)),
     ]);
 
     const now = new Date();
     const items: QueueItem[] = [];
-    for (const { assessment, sectionName, courseCode } of taught) {
+    for (const { assessment, sectionName, courseCode } of graded) {
       for (const student of students.filter((row) => row.sectionId === assessment.sectionId)) {
-        const latest = submitted.find(
-          (row) => row.assessmentId === assessment.id && row.studentId === student.id,
-        );
-        const grade = gradeRows.find(
-          (row) => row.assessmentId === assessment.id && row.studentId === student.id,
-        );
+        const mine = (row: { assessmentId: string; studentId: string }) =>
+          row.assessmentId === assessment.id && row.studentId === student.id;
+        const latest = usesQuestions(assessment.kind)
+          ? latestAttempt(attemptRows.filter(mine), now)
+          : latestSubmission(submitted.find(mine));
+        const grade = gradeRows.find(mine);
         const itemStatus = queueStatus(latest, grade, assessment, now);
         if (!itemStatus || (status && itemStatus !== status)) continue;
         items.push({
@@ -149,9 +180,12 @@ export class GradingService {
   }
 
   /** T14: one student's submissions and grade. */
-  async view(teacher: UserRow, assessmentId: string, studentId: string): Promise<GradingView> {
-    const taught = await this.taught(this.db, teacher, assessmentId);
+  async view(grader: Grader, assessmentId: string, studentId: string): Promise<GradingView> {
+    const taught = await this.taught(this.db, grader.teacher, assessmentId);
     const student = await this.enrolledStudent(this.db, taught, studentId);
+    if (usesQuestions(taught.assessment.kind)) {
+      return this.quizzes.view(quizContext(taught), student, grader);
+    }
     return this.describe(this.db, taught, student);
   }
 
@@ -196,6 +230,9 @@ export class GradingService {
     return this.db.transaction(async (tx) => {
       const taught = await this.taught(tx, grader.teacher, assessmentId, true);
       const student = await this.enrolledStudent(tx, taught, studentId);
+      if (usesQuestions(taught.assessment.kind)) {
+        return this.quizzes.save(tx, quizContext(taught), student, input, grader);
+      }
       const [latest] = await tx
         .select()
         .from(submissions)
@@ -228,79 +265,36 @@ export class GradingService {
         .from(grades)
         .where(and(eq(grades.assessmentId, assessmentId), eq(grades.studentId, studentId)))
         .for('update');
-      // Sorted like gradeAudit's, so an unchanged grade compares equal.
-      const levels = Object.fromEntries(
-        [...chosen]
-          .sort((a, b) => a.criterionId.localeCompare(b.criterionId))
-          .map((item) => [item.criterionId, item.levelId]),
-      );
-      const before = existing ? await this.gradeAudit(tx, existing) : null;
-      const after = {
-        submissionNumber: latest.number,
-        score,
-        maxPoints,
-        feedback: input.feedback,
-        levels,
-      };
-      const now = new Date();
-
-      let action: AuditAction;
-      let reason: string | null = null;
-      if (existing?.status === 'released') {
-        if (JSON.stringify(before) === JSON.stringify(after))
-          return this.describe(tx, taught, student);
-        if (!input.reason) {
-          throw new BadRequestException('Give a reason for changing a released grade.');
-        }
-        action = 'grade.changed_after_release';
-        reason = input.reason;
-      } else {
-        action = input.release ? 'grade.released' : 'grade.saved';
-      }
-      const released = existing?.status === 'released' || input.release;
-      const values = {
-        submissionId: latest.id,
-        score,
-        maxPoints,
-        feedback: input.feedback,
-        status: released ? ('released' as const) : ('draft' as const),
-        gradedBy: grader.teacher.id,
-        gradedAt: now,
-        releasedAt: released ? (existing?.releasedAt ?? now) : null,
-      };
-      let gradeId: string;
-      if (existing) {
-        await tx.update(grades).set(values).where(eq(grades.id, existing.id));
-        gradeId = existing.id;
-      } else {
-        const [created] = await tx
-          .insert(grades)
-          .values({ assessmentId, studentId, ...values })
-          .returning({ id: grades.id });
-        if (!created) throw new ConflictException('The grade could not be saved.');
-        gradeId = created.id;
-      }
-      await tx.delete(gradeRubricScores).where(eq(gradeRubricScores.gradeId, gradeId));
-      if (chosen.length > 0) {
-        await tx
-          .insert(gradeRubricScores)
-          .values(chosen.map(({ criterionId, levelId }) => ({ gradeId, criterionId, levelId })));
-      }
-      await this.audit.record(
-        {
-          actorId: grader.teacher.id,
-          actorRole: grader.teacher.role,
-          action,
-          targetType: 'grade',
-          targetId: gradeId,
-          outcome: 'success',
-          reason,
-          before,
-          after: { ...after, studentId, assessmentId, status: values.status },
-          ipAddress: grader.client.ipAddress,
-          userAgent: grader.client.userAgent,
-        },
+      await writeGrade(
         tx,
+        this.audit,
+        grader,
+        {
+          assessmentId,
+          studentId,
+          existing,
+          target: { submissionId: latest.id },
+          score,
+          maxPoints,
+          feedback: input.feedback,
+          release: input.release,
+          reason: input.reason,
+          before: existing ? await this.gradeAudit(tx, existing) : null,
+          after: {
+            submissionNumber: latest.number,
+            score,
+            maxPoints,
+            feedback: input.feedback,
+            levels: sortedRecord(chosen.map((item) => [item.criterionId, item.levelId] as const)),
+          },
+        },
+        async (gradeId) => {
+          await tx.delete(gradeRubricScores).where(eq(gradeRubricScores.gradeId, gradeId));
+          if (chosen.length === 0) return;
+          await tx
+            .insert(gradeRubricScores)
+            .values(chosen.map(({ criterionId, levelId }) => ({ gradeId, criterionId, levelId })));
+        },
       );
       return this.describe(tx, taught, student);
     });
@@ -326,11 +320,7 @@ export class GradingService {
       score: grade.score,
       maxPoints: grade.maxPoints,
       feedback: grade.feedback,
-      levels: Object.fromEntries(
-        [...levels]
-          .sort((a, b) => a.criterionId.localeCompare(b.criterionId))
-          .map((row) => [row.criterionId, row.levelId]),
-      ),
+      levels: sortedRecord(levels.map((row) => [row.criterionId, row.levelId] as const)),
     };
   }
 
@@ -380,13 +370,16 @@ export class GradingService {
       rubric,
       points: rubricTotal(rubric),
       submissions: mine.map(toSubmissionFile),
+      attempt: null,
       grade: grade
         ? {
             status: grade.status,
             score: grade.score,
             feedback: grade.feedback,
             levels: Object.fromEntries(levels.map((row) => [row.criterionId, row.levelId])),
+            questionPoints: {},
             submissionId: grade.submissionId,
+            attemptId: null,
             gradedAt: grade.gradedAt.toISOString(),
             releasedAt: grade.releasedAt?.toISOString() ?? null,
           }
@@ -457,19 +450,53 @@ export class GradingService {
       eq(teachingAssignments.teacherId, teacher.id),
       eq(academicTerms.current, true),
       eq(assessments.status, 'published'),
-      inArray(assessments.kind, [...SUBMISSION_KINDS]),
+      // Quizzes too: those with written questions are graded here (QuizGradingService).
     );
   }
 }
 
+/** The work a queue row is about: a submission or a quiz attempt. */
+interface LatestWork {
+  readonly id: string;
+  readonly submittedAt: Date;
+  readonly late: boolean;
+}
+
+function latestSubmission(row: SubmissionRow | undefined): LatestWork | undefined {
+  return row ? { id: row.id, submittedAt: row.submittedAt!, late: row.late } : undefined;
+}
+
+/** The newest finished attempt; one left open past its deadline counts as finished. */
+function latestAttempt(rows: readonly AttemptRow[], now: Date): LatestWork | undefined {
+  const graceMs = SAVE_GRACE_SECONDS * 1000;
+  const done = rows.find(
+    (row) => row.status === 'submitted' || now.getTime() > row.deadlineAt.getTime() + graceMs,
+  );
+  return done
+    ? { id: done.id, submittedAt: done.submittedAt ?? done.deadlineAt, late: false }
+    : undefined;
+}
+
 function queueStatus(
-  latest: SubmissionRow | undefined,
+  latest: LatestWork | undefined,
   grade: GradeRow | undefined,
   assessment: AssessmentRow,
   now: Date,
 ): QueueStatus | null {
   if (!latest) return now >= assessment.dueAt! ? 'missing' : null;
-  // A newer submission than the graded one needs another look.
-  if (!grade || grade.submissionId !== latest.id) return 'needs_review';
+  // Newer work than the graded one needs another look.
+  if (!grade || (grade.submissionId ?? grade.attemptId) !== latest.id) return 'needs_review';
   return grade.status === 'released' ? 'released' : 'draft_grade';
+}
+
+function quizContext(taught: Taught): QuizContext {
+  return {
+    assessmentId: taught.assessment.id,
+    title: taught.assessment.title,
+    kind: taught.assessment.kind,
+    courseCode: taught.courseCode,
+    courseTitle: taught.courseTitle,
+    sectionName: taught.sectionName,
+    dueAt: taught.assessment.dueAt!.toISOString(),
+  };
 }

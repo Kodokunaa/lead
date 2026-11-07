@@ -198,7 +198,13 @@ Slice 3c (assignment submissions S12, grading T13–T14, X05) — done:
 - T13 lists each enrolled student's latest submission (needs review, draft grade, released) and missing work after the due date, filtered by class and status. T14 shows the submission history with downloads, scores each rubric criterion (the total is computed on the server), takes feedback, and saves a draft grade or releases it. Students see only released grades. Changing a released grade needs a reason, kept in the audit log (X05).
 - Uploads and submissions lock the student's enrollment row (a test forces two uploads at once); a failed save never leaves its file behind, and replacing a draft removes the old file only after the new one is committed. Student uploads have their own limit (60 a minute per address) because a classroom shares one address.
 
-Next: slice 3c2 (written quiz answers in the grading queue), then 3d (gradebook T15, S13, grading policy A19).
+Slice 3c2 (written quiz answers in grading) — done:
+
+- Quizzes and examinations with written questions appear in the T13 queue by each student's latest finished attempt (one left open past its deadline counts, and is closed when the teacher opens it, recorded with the teacher's name). T14 shows every question with the student's answer: multiple choice as scored on submission (with the answer key), written ones with a points box up to the question's points. The total is the multiple-choice score plus those points, computed on the server; drafts, release and reasoned changes work as for assignments (one shared grade writer).
+- Once released, the student's result (S11) shows the teacher's total, the points per written question and the feedback. Quizzes with only multiple choice need no teacher.
+- Two saves of the same grade at once keep one grade (a test forces the overlap; it failed with a server error before the attempt lock).
+
+Next: slice 3d (gradebook T15, student grades S13, grading policy A19).
 
 ## Seed data
 

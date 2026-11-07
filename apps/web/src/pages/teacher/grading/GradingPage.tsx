@@ -1,8 +1,15 @@
-import { ASSESSMENT_KIND_LABELS, type GradingView, type SubmissionFile } from '@lead/schema';
+import {
+  ASSESSMENT_KIND_LABELS,
+  type GradedAttempt,
+  type GradedQuestion,
+  type GradingView,
+  type SubmissionFile,
+} from '@lead/schema';
 import { Link } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '../../../auth/session';
@@ -54,6 +61,8 @@ export function GradingPage({ assessmentId, studentId }: Props) {
   }
   const view = result.data;
   const latest = view.submissions[0];
+  // What the grade is for: the latest submission, or the quiz attempt.
+  const targetId = view.attempt?.id ?? latest?.id;
   const announce = (text: string) => {
     setNotice((previous) => nextNotice(previous, text));
     result.reload();
@@ -86,12 +95,30 @@ export function GradingPage({ assessmentId, studentId }: Props) {
         <Card className="card-interactive">
           <CardHeader>
             <CardTitle>
-              <h2 className="text-base font-semibold">{view.student.name} / submitted file</h2>
+              <h2 className="text-base font-semibold">
+                {view.student.name} / {view.attempt ? 'quiz attempt' : 'submitted file'}
+              </h2>
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
-            {!latest ? (
-              <p>No submission yet.</p>
+            {view.attempt ? (
+              <>
+                <p>
+                  Attempt {view.attempt.number}, submitted{' '}
+                  {formatDateTime(view.attempt.submittedAt)}
+                  {view.attempt.autoSubmitted ? ' (time ran out)' : ''}
+                </p>
+                <p>
+                  Multiple choice, scored on submission: {view.attempt.score} /{' '}
+                  {view.attempt.scoredPoints}
+                </p>
+              </>
+            ) : !latest ? (
+              <p>
+                {view.kind === 'assignment' || view.kind === 'project'
+                  ? 'No submission yet.'
+                  : 'No submitted attempt yet.'}
+              </p>
             ) : (
               <>
                 <SubmissionLine view={view} file={latest} />
@@ -112,15 +139,15 @@ export function GradingPage({ assessmentId, studentId }: Props) {
           </CardContent>
         </Card>
 
-        {latest && (
+        {targetId ? (
           <GradeForm
             // A fresh form once a save comes back.
             key={view.grade?.gradedAt ?? 'none'}
             view={view}
-            latest={latest}
+            targetId={targetId}
             onSaved={announce}
           />
-        )}
+        ) : null}
       </div>
     </section>
   );
@@ -181,21 +208,40 @@ function SubmissionLine({ view, file }: { view: GradingView; file: SubmissionFil
 
 interface GradeFormProps {
   readonly view: GradingView;
-  readonly latest: SubmissionFile;
+  /** The submission or attempt being graded. */
+  readonly targetId: string;
   readonly onSaved: (text: string) => void;
 }
 
-function GradeForm({ view, latest, onSaved }: GradeFormProps) {
+function GradeForm({ view, targetId, onSaved }: GradeFormProps) {
   const auth = useAuth();
   const feedbackId = useId();
   const reasonId = useId();
   const [chosen, setChosen] = useState<Record<string, string>>(() => ({ ...view.grade?.levels }));
   const released = view.grade?.status === 'released';
-  const stale = view.grade !== null && view.grade.submissionId !== latest.id;
-  const total = view.rubric.reduce((sum, criterion) => {
-    const level = criterion.levels.find((item) => item.id === chosen[criterion.id]);
-    return sum + (level?.points ?? 0);
-  }, 0);
+  // Written-question points as typed, { questionId: "4" }.
+  const stale =
+    view.grade !== null && (view.grade.submissionId ?? view.grade.attemptId) !== targetId;
+  // The written questions of this attempt; points always refer to these only.
+  const written = (view.attempt?.questions ?? []).filter((question) => question.kind === 'written');
+  // A grade of an earlier attempt does not carry its points over to new answers.
+  const [given, setGiven] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      stale
+        ? []
+        : written.flatMap((question) => {
+            const points = view.grade?.questionPoints[question.id];
+            return points === undefined ? [] : [[question.id, String(points)]];
+          }),
+    ),
+  );
+  const total = view.attempt
+    ? view.attempt.score +
+      written.reduce((sum, question) => sum + (Number(given[question.id]) || 0), 0)
+    : view.rubric.reduce((sum, criterion) => {
+        const level = criterion.levels.find((item) => item.id === chosen[criterion.id]);
+        return sum + (level?.points ?? 0);
+      }, 0);
 
   // Which button sent the form: "Save draft grade" or "Release grade and feedback".
   const releasing = useRef(false);
@@ -204,7 +250,10 @@ function GradeForm({ view, latest, onSaved }: GradeFormProps) {
     await auth.request(`/teacher/grading/${view.assessmentId}/students/${view.student.id}`, {
       method: 'PUT',
       body: {
-        levels: chosen,
+        levels: view.attempt ? {} : chosen,
+        questionPoints: Object.fromEntries(
+          written.map((question) => [question.id, Number(given[question.id])]),
+        ),
         feedback: field(form, 'feedback'),
         release,
         reason: field(form, 'reason'),
@@ -231,8 +280,18 @@ function GradeForm({ view, latest, onSaved }: GradeFormProps) {
           {error && <FormMessage tone="error">{error}</FormMessage>}
           {stale && (
             <p className="rounded-xl border border-orange-200 bg-accent px-3 py-2 text-sm">
-              The student submitted a newer version since this grade was saved; it is graded now.
+              The student {view.attempt ? 'took the quiz again' : 'submitted a newer version'} since
+              this grade was saved; the newest one is graded now.
             </p>
+          )}
+          {view.attempt && (
+            <QuizScoring
+              attempt={view.attempt}
+              given={given}
+              onChange={(questionId, points) =>
+                setGiven((current) => ({ ...current, [questionId]: points }))
+              }
+            />
           )}
           {view.rubric.map((criterion) => (
             <fieldset key={criterion.id} className="flex flex-col gap-2">
@@ -269,7 +328,11 @@ function GradeForm({ view, latest, onSaved }: GradeFormProps) {
           <p className="font-semibold">
             Total: {total} / {view.points}
           </p>
-          <p className="text-xs text-muted-foreground">Choose a level for every criterion.</p>
+          <p className="text-xs text-muted-foreground">
+            {view.attempt
+              ? 'Give points for every written answer; multiple choice is already scored.'
+              : 'Choose a level for every criterion.'}
+          </p>
           <div className="flex flex-col gap-2">
             <Label htmlFor={feedbackId}>Feedback</Label>
             <Textarea
@@ -332,5 +395,84 @@ function GradeForm({ view, latest, onSaved }: GradeFormProps) {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+interface QuizScoringProps {
+  readonly attempt: GradedAttempt;
+  readonly given: Readonly<Record<string, string>>;
+  readonly onChange: (questionId: string, points: string) => void;
+}
+
+/** Each question of the attempt: multiple choice as scored, written ones with a points box. */
+function QuizScoring({ attempt, given, onChange }: QuizScoringProps) {
+  return (
+    <ol className="flex flex-col gap-3">
+      {attempt.questions.map((question) => (
+        <li key={question.id} className="rounded-xl border p-3 text-sm">
+          <p className="font-medium">
+            Question {question.position} ({question.points} point
+            {question.points === 1 ? '' : 's'})
+          </p>
+          <p className="mt-1 break-words whitespace-pre-wrap">{question.prompt}</p>
+          {question.kind === 'multiple_choice' ? (
+            <p className="mt-2">
+              {question.answer === null ? (
+                'Not answered'
+              ) : (
+                <>
+                  Answer: {question.answer} ·{' '}
+                  <span className={question.correct ? 'text-green-800' : 'text-red-800'}>
+                    {question.correct ? 'correct' : 'incorrect'}
+                  </span>
+                </>
+              )}{' '}
+              · {question.awarded ?? 0} / {question.points}
+            </p>
+          ) : (
+            <WrittenAnswer
+              question={question}
+              value={given[question.id] ?? ''}
+              onChange={(points) => onChange(question.id, points)}
+            />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function WrittenAnswer({
+  question,
+  value,
+  onChange,
+}: {
+  question: GradedQuestion;
+  value: string;
+  onChange: (points: string) => void;
+}) {
+  const pointsId = useId();
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      <p className="rounded-lg bg-muted/40 p-2 break-words whitespace-pre-wrap">
+        {question.answer ?? 'No answer was given.'}
+      </p>
+      <div className="flex items-center gap-2">
+        <Label htmlFor={pointsId}>
+          Points for question {question.position} (out of {question.points})
+        </Label>
+        <Input
+          id={pointsId}
+          type="number"
+          min={0}
+          max={question.points}
+          step={1}
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-9 w-20 rounded-lg"
+        />
+      </div>
+    </div>
   );
 }

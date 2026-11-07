@@ -32,8 +32,12 @@ export const submissionConfirmSchema = z.object({
 });
 
 export const gradeInputSchema = z.object({
-  /** The chosen level of every rubric criterion: { criterionId: levelId }. */
-  levels: z.record(z.uuid(), z.uuid()),
+  /** Assignments and projects: the chosen level of every rubric criterion, { criterionId: levelId }. */
+  levels: z.record(z.uuid(), z.uuid()).default({}),
+  /** Quizzes and examinations: points for every written question, { questionId: points }. */
+  questionPoints: z
+    .record(z.uuid(), z.number().int('Give whole points.').min(0, 'Points cannot be negative.'))
+    .default({}),
   feedback: plainText().trim().max(MAX_FEEDBACK, 'Keep the feedback under 5,000 characters.'),
   /** Release the grade and feedback to the student now. */
   release: z.boolean().default(false),
@@ -114,6 +118,33 @@ export interface GradingQueue {
   readonly items: readonly QueueItem[];
 }
 
+/** One question of a graded quiz attempt, as the teacher sees it (answer key included). */
+export interface GradedQuestion {
+  readonly id: string;
+  readonly position: number;
+  readonly kind: 'multiple_choice' | 'written';
+  readonly prompt: string;
+  readonly points: number;
+  /** Written answer, or the text of the chosen option. */
+  readonly answer: string | null;
+  /** Multiple choice: whether the chosen option was the correct one. */
+  readonly correct: boolean | null;
+  /** Multiple choice: points scored on submission. */
+  readonly awarded: number | null;
+}
+
+/** The latest submitted attempt of a quiz or examination with written questions. */
+export interface GradedAttempt {
+  readonly id: string;
+  readonly number: number;
+  readonly submittedAt: string;
+  readonly autoSubmitted: boolean;
+  /** Multiple-choice points earned and available. */
+  readonly score: number;
+  readonly scoredPoints: number;
+  readonly questions: readonly GradedQuestion[];
+}
+
 /** T14: one student's submissions and grade, for the teacher. */
 export interface GradingView {
   readonly assessmentId: string;
@@ -127,12 +158,16 @@ export interface GradingView {
   readonly rubric: readonly RubricCriterion[];
   readonly points: number;
   readonly submissions: readonly SubmissionFile[];
+  /** Quizzes and examinations: the attempt being graded (assignments have submissions). */
+  readonly attempt: GradedAttempt | null;
   readonly grade: {
     readonly status: GradeStatus;
     readonly score: number;
     readonly feedback: string;
     readonly levels: Readonly<Record<string, string>>;
+    readonly questionPoints: Readonly<Record<string, number>>;
     readonly submissionId: string | null;
+    readonly attemptId: string | null;
     readonly gradedAt: string;
     readonly releasedAt: string | null;
   } | null;

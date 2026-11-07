@@ -120,6 +120,20 @@
       "when": 1794065548298,
       "tag": "0016_submissions_and_grades",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794067934250,
+      "tag": "0017_quiz_grades",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794068862953,
+      "tag": "0018_grades_attempt_index",
+      "breakpoints": true
     }
   ]
 }

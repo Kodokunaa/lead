@@ -88,6 +88,7 @@ function view(overrides: Partial<GradingView> = {}): GradingView {
     rubric: RUBRIC,
     points: 8,
     submissions: [file()],
+    attempt: null,
     grade: null,
     ...overrides,
   };
@@ -256,6 +257,7 @@ describe('grading (T13, T14, X05)', () => {
     expect(await screen.findByText('Draft grade saved.')).toBeInTheDocument();
     expect(api.bodyOf(`PUT ${GRADE_PATH}`)).toEqual({
       levels: { [C1]: level(0, 4), [C2]: level(1, 2) },
+      questionPoints: {},
       feedback: 'Clarify step 2.',
       release: false,
       reason: '',
@@ -293,7 +295,9 @@ describe('grading (T13, T14, X05)', () => {
           score: 6,
           feedback: 'Clarify step 2.',
           levels: { [C1]: level(0, 4), [C2]: level(1, 2) },
+          questionPoints: {},
           submissionId: SUB1,
+          attemptId: null,
           gradedAt: '2026-11-08T01:00:00.000Z',
           releasedAt: '2026-11-08T01:00:00.000Z',
         },
@@ -318,6 +322,63 @@ describe('grading (T13, T14, X05)', () => {
     expect(api.bodyOf(`PUT ${GRADE_PATH}`)).toMatchObject({
       levels: { [C1]: level(0, 4), [C2]: level(1, 4) },
       reason: 'Regraded the second version',
+    });
+  });
+
+  it('gives points to written quiz answers (T14)', async () => {
+    const api = installFakeApi(fakeUser('teacher'));
+    const quizView = view({
+      kind: 'quiz',
+      title: 'Quiz 3',
+      rubric: [],
+      points: 10,
+      submissions: [],
+      attempt: {
+        id: SUB2,
+        number: 1,
+        submittedAt: '2026-11-08T01:00:00.000Z',
+        autoSubmitted: false,
+        score: 2,
+        scoredPoints: 5,
+        questions: [
+          {
+            id: C1,
+            position: 1,
+            kind: 'multiple_choice',
+            prompt: 'Which key?',
+            points: 2,
+            answer: 'Candidate key',
+            correct: true,
+            awarded: 2,
+          },
+          {
+            id: C2,
+            position: 2,
+            kind: 'written',
+            prompt: 'Explain 2NF.',
+            points: 5,
+            answer: 'No partial dependencies.',
+            correct: null,
+            awarded: null,
+          },
+        ],
+      },
+    });
+    api.on(`GET ${GRADE_PATH}`, { status: 200, body: quizView });
+    api.on(`PUT ${GRADE_PATH}`, { status: 200, body: quizView });
+    renderApp(`/teacher/grading/${WORK}/${STUDENT}`);
+
+    expect(await screen.findByText('No partial dependencies.')).toBeInTheDocument();
+    expect(screen.getByText('Multiple choice, scored on submission: 2 / 5')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Points for question 2 (out of 5)'), '4');
+    expect(screen.getByText('Total: 6 / 10')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Release grade and feedback' }));
+
+    expect(await screen.findByText('Grade and feedback released.')).toBeInTheDocument();
+    expect(api.bodyOf(`PUT ${GRADE_PATH}`)).toMatchObject({
+      levels: {},
+      questionPoints: { [C2]: 4 },
+      release: true,
     });
   });
 });

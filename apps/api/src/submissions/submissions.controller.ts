@@ -122,8 +122,9 @@ export class TeacherGradingController {
     @Param('assessmentId', id) assessmentId: string,
     @Param('studentId', id) studentId: string,
     @CurrentUserRow() teacher: UserRow,
+    @Req() request: Request,
   ): Promise<GradingView> {
-    return this.grading.view(teacher, assessmentId, studentId);
+    return this.grading.view({ teacher, client: clientInfo(request) }, assessmentId, studentId);
   }
 
   @Put(':assessmentId/students/:studentId')

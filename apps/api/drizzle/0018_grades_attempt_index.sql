@@ -1,0 +1,1 @@
+CREATE INDEX "grades_attempt_idx" ON "grades" USING btree ("attempt_id");

@@ -96,6 +96,7 @@ const result: AttemptResult = {
   attemptsUsed: 1,
   maxAttempts: 2,
   canRetake: true,
+  grade: null,
 };
 
 function studentApi(): FakeApi {
@@ -281,5 +282,28 @@ describe('quiz attempts (S07–S11)', () => {
 
     expect(await screen.findByText('Multiple choice: 2 / 2 (100%)')).toBeInTheDocument();
     expect(api.calls).not.toContain(`POST /student/attempts/${ATTEMPT}/submit`);
+  });
+
+  it('shows the grade once the teacher releases it (S11)', async () => {
+    const api = studentApi();
+    api.on(`GET /student/attempts/${ATTEMPT}/result`, {
+      status: 200,
+      body: {
+        ...result,
+        grade: {
+          score: 6,
+          maxPoints: 7,
+          feedback: 'Good start.',
+          releasedAt: '2026-11-08T01:00:00.000Z',
+          written: [{ position: 2, points: 4, maxPoints: 5 }],
+        },
+      } satisfies AttemptResult,
+    });
+    renderApp(`/student/attempts/${ATTEMPT}/result`);
+
+    expect(await screen.findByText('Total graded by your teacher: 6 / 7')).toBeInTheDocument();
+    expect(screen.getByText('Written question 2: 4 / 5')).toBeInTheDocument();
+    expect(screen.getByText('Feedback: Good start.')).toBeInTheDocument();
+    expect(screen.queryByText(/This is not your official grade/)).not.toBeInTheDocument();
   });
 });
