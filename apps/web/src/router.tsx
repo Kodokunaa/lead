@@ -26,6 +26,9 @@ import {
   AssessmentRubricPage,
   AssessmentSettingsPage,
   AssessmentsPage,
+  AttemptPage,
+  AttemptResultPage,
+  AttemptReviewPage,
   ContentHomePage,
   CourseRecordPage,
   CourseOutlinePage,
@@ -33,6 +36,8 @@ import {
   ModuleEditorPage,
   MyClassesPage,
   MyCoursesPage,
+  StudentAssessmentPage,
+  StudentAssessmentsPage,
   ProfilePage,
   ResourceLibraryPage,
   ResourceReviewPage,
@@ -148,6 +153,34 @@ function AssessmentReviewRoute(): ReactElement {
   return <AssessmentReviewPage key={assessmentId} assessmentId={assessmentId} />;
 }
 
+function StudentAssessmentView(): ReactElement {
+  const assessmentId = studentAssessmentRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <StudentAssessmentPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
+function AttemptView(): ReactElement {
+  const attemptId = attemptRoute.useParams({
+    select: (params: { attemptId: string }) => params.attemptId,
+  });
+  return <AttemptPage key={attemptId} attemptId={attemptId} />;
+}
+
+function AttemptReviewView(): ReactElement {
+  const attemptId = attemptReviewRoute.useParams({
+    select: (params: { attemptId: string }) => params.attemptId,
+  });
+  return <AttemptReviewPage key={attemptId} attemptId={attemptId} />;
+}
+
+function AttemptResultView(): ReactElement {
+  const attemptId = attemptResultRoute.useParams({
+    select: (params: { attemptId: string }) => params.attemptId,
+  });
+  return <AttemptResultPage key={attemptId} attemptId={attemptId} />;
+}
+
 function ResourcesRoute(): ReactElement {
   const courseId = resourcesRoute.useParams({
     select: (params: { courseId: string }) => params.courseId,
@@ -233,6 +266,7 @@ const BUILT_PAGES: Readonly<Partial<Record<string, RouteComponent>>> = {
   '/teacher/content': ContentHomePage,
   '/teacher/assessments': AssessmentsPage,
   '/student/courses': MyCoursesPage,
+  '/student/assessments': StudentAssessmentsPage,
 };
 
 /** Pages opened from emailed links read their token from the URL fragment. */
@@ -376,6 +410,34 @@ const assessmentReviewRoute = createRoute({
   component: AssessmentReviewRoute,
 });
 
+const studentAssessmentRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/assessments/$assessmentId',
+  beforeLoad: requireRole('student'),
+  component: StudentAssessmentView,
+});
+
+const attemptRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/attempts/$attemptId',
+  beforeLoad: requireRole('student'),
+  component: AttemptView,
+});
+
+const attemptReviewRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/attempts/$attemptId/review',
+  beforeLoad: requireRole('student'),
+  component: AttemptReviewView,
+});
+
+const attemptResultRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/attempts/$attemptId/result',
+  beforeLoad: requireRole('student'),
+  component: AttemptResultView,
+});
+
 const resourcesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/content/$courseId/resources',
@@ -461,6 +523,10 @@ const extraSignedInRoutes = [
   calendarRoute,
   courseRecordRoute,
   resourcesRoute,
+  studentAssessmentRoute,
+  attemptRoute,
+  attemptReviewRoute,
+  attemptResultRoute,
   assessmentSettingsRoute,
   assessmentQuestionsRoute,
   assessmentRubricRoute,

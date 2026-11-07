@@ -93,3 +93,18 @@ export const StudentLessonPage = page(() =>
 export const StudentResourcePage = page(() =>
   import('./student/CoursePages').then((m) => m.StudentResourcePage),
 );
+export const StudentAssessmentsPage = page(() =>
+  import('./student/assessments/AssessmentListPage').then((m) => m.StudentAssessmentsPage),
+);
+export const StudentAssessmentPage = page(() =>
+  import('./student/assessments/InstructionsPage').then((m) => m.StudentAssessmentPage),
+);
+export const AttemptPage = page(() =>
+  import('./student/assessments/AttemptPage').then((m) => m.AttemptPage),
+);
+export const AttemptReviewPage = page(() =>
+  import('./student/assessments/ReviewAttemptPage').then((m) => m.AttemptReviewPage),
+);
+export const AttemptResultPage = page(() =>
+  import('./student/assessments/ResultPage').then((m) => m.AttemptResultPage),
+);

@@ -32,3 +32,8 @@ export { AssessmentSettingsPage } from '../pages/teacher/assessments/SettingsPag
 export { AssessmentQuestionsPage } from '../pages/teacher/assessments/QuestionsPage';
 export { AssessmentRubricPage } from '../pages/teacher/assessments/RubricPage';
 export { AssessmentReviewPage } from '../pages/teacher/assessments/ReviewPage';
+export { StudentAssessmentsPage } from '../pages/student/assessments/AssessmentListPage';
+export { StudentAssessmentPage } from '../pages/student/assessments/InstructionsPage';
+export { AttemptPage } from '../pages/student/assessments/AttemptPage';
+export { AttemptReviewPage } from '../pages/student/assessments/ReviewAttemptPage';
+export { AttemptResultPage } from '../pages/student/assessments/ResultPage';

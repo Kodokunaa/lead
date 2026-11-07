@@ -18,6 +18,7 @@ import {
 import {
   ACCOUNT_STATUSES,
   ASSESSMENT_KINDS,
+  ATTEMPT_STATUSES,
   AUDIT_OUTCOMES,
   CALENDAR_EVENT_KINDS,
   CONTENT_STATUSES,
@@ -694,6 +695,70 @@ export const rubricLevels = pgTable(
 
 export type AssessmentRow = typeof assessments.$inferSelect;
 export type QuestionRow = typeof assessmentQuestions.$inferSelect;
+
+export const attemptStatusEnum = pgEnum('attempt_status', ATTEMPT_STATUSES);
+
+/**
+ * One student's attempt at a quiz or examination (S08–S11). At most one is in progress per
+ * student and assessment; `deadline_at` is fixed when it starts (time limit or due date).
+ */
+export const attempts = pgTable(
+  'attempts',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'restrict' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    number: integer('number').notNull(),
+    status: attemptStatusEnum('status').notNull().default('in_progress'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    deadlineAt: timestamp('deadline_at', { withTimezone: true }).notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    /** Submitted by the server because time ran out. */
+    autoSubmitted: boolean('auto_submitted').notNull().default(false),
+    /** Multiple-choice points earned and available, set on submission. */
+    score: integer('score'),
+    scoredPoints: integer('scored_points'),
+  },
+  (table) => [
+    uniqueIndex('attempts_number_idx').on(table.assessmentId, table.studentId, table.number),
+    uniqueIndex('attempts_one_open_idx')
+      .on(table.assessmentId, table.studentId)
+      .where(sql`${table.status} = 'in_progress'`),
+    index('attempts_student_idx').on(table.studentId),
+    check('attempts_number_check', sql`${table.number} between 1 and 10`),
+    check(
+      'attempts_submitted_check',
+      sql`${table.status} <> 'submitted' or (${table.submittedAt} is not null and ${table.score} is not null)`,
+    ),
+  ],
+);
+
+/** The saved answer to one question of an attempt. */
+export const attemptAnswers = pgTable(
+  'attempt_answers',
+  {
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => attempts.id, { onDelete: 'cascade' }),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => assessmentQuestions.id, { onDelete: 'restrict' }),
+    choiceId: uuid('choice_id').references(() => questionChoices.id, { onDelete: 'restrict' }),
+    text: text('text').notNull().default(''),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Set on submission for multiple choice; written answers wait for the teacher. */
+    pointsAwarded: integer('points_awarded'),
+  },
+  (table) => [primaryKey({ columns: [table.attemptId, table.questionId] })],
+);
+
+export type AttemptRow = typeof attempts.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
 export type TermRow = typeof academicTerms.$inferSelect;

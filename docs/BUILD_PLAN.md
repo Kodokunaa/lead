@@ -185,7 +185,14 @@ Slice 3a (assessment builder T08–T12) — done:
 - Teachers create quizzes, examinations, assignments and projects for one of their classes this term. Settings (T09): title, instructions, opening and due date in Philippine time, time limit (quizzes and examinations), allowed attempts, and the course objectives measured. Quizzes and examinations get multiple-choice (exactly one correct answer) and written questions, each with points, difficulty and one of the assessment's objectives (T10); assignments and projects get a rubric of criteria and levels (T11).
 - T12 lists every publication check (objectives, questions or rubric, dates in the future, AI off during attempts) with a link to fix it; publishing is refused with the first failing check. Published assessments are read-only until unpublished. Every change is audited and locks the assessment row (tests force two questions added at once, and an administrator removing the teacher while an assessment is created, which deadlocked before the section was locked first).
 
-Next: slice 3b (student attempts S07–S11).
+Slice 3b (quiz and examination attempts S07–S11) — done:
+
+- Students see the published quizzes and examinations of the classes they are enrolled in, with what they can do next (scheduled, available, in progress, submitted, missed). The instructions page shows the objectives, questions, points, time limit, window and attempts used, and says why an attempt cannot begin.
+- An attempt has a deadline fixed when it begins (the time limit or the due date, whichever comes first). Answers save as they are given, through one queue so an older answer never overwrites a newer one; a failed save shows the X02 message with a retry, and leaving the page saves what was being typed. The countdown runs on the server's clock and submits at zero; the server also submits an expired attempt with the answers saved by then the next time it is touched, and refuses answers 15 seconds after the deadline.
+- On submission multiple-choice answers are scored and written answers wait for the teacher. The result shows the score, the points awaiting grading and the evidence per objective, and says it is not the official grade. The answer key never reaches the student.
+- One attempt in progress per student (enrollment row lock plus a partial unique index; a test forces two starts at once and another drops the student while starting). Teachers can no longer unpublish an assessment once an attempt exists.
+
+Next: slice 3c (assignment submissions S12, grading queue and review T13–T14, reasoned grade changes X05).
 
 ## Seed data
 

@@ -87,6 +87,8 @@ export const KNOWN_ACTIONS = [
   'question.moved',
   'question.removed',
   'rubric.saved',
+  'attempt.started',
+  'attempt.submitted',
   'resource.submitted',
   'resource.approved',
   'resource.returned',

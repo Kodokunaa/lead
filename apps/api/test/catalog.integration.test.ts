@@ -144,19 +144,21 @@ describe('course catalog (integration)', () => {
     });
 
     it('keeps exactly one current term, even when two are chosen at once', async () => {
-      const make = async (semester: 'first' | 'second') => {
-        const year = uniqueSchoolYear();
-        const start = year.slice(0, 4);
-        return (
-          await admin('post', '/terms')
-            .send({
-              schoolYear: year,
-              semester,
-              startsOn: `${start}-08-01`,
-              endsOn: `${start}-12-01`,
-            })
-            .expect(201)
-        ).body as Term;
+      // The test database keeps terms between runs, so a random year may be taken: try another.
+      const make = async (semester: 'first' | 'second'): Promise<Term> => {
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          const year = uniqueSchoolYear();
+          const start = year.slice(0, 4);
+          const response = await admin('post', '/terms').send({
+            schoolYear: year,
+            semester,
+            startsOn: `${start}-08-01`,
+            endsOn: `${start}-12-01`,
+          });
+          if (response.status === 201) return response.body as Term;
+          expect(response.status).toBe(409);
+        }
+        throw new Error('No free school year for a test term.');
       };
       const [first, second] = [await make('first'), await make('second')];
 

@@ -11,3 +11,4 @@ export * from './resources';
 export * from './learning';
 export * from './search';
 export * from './assessments';
+export * from './attempts';

@@ -10,6 +10,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { SectionsModule } from './sections/sections.module';
 import { ConfigModule } from './config/config.module';
 import { AssessmentsModule } from './assessments/assessments.module';
+import { AttemptsModule } from './attempts/attempts.module';
 import { ContentModule } from './content/content.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
@@ -38,6 +39,7 @@ const DEFAULT_RATE_LIMIT = { limit: 1_200, ttl: 60_000 };
     SectionsModule,
     ContentModule,
     AssessmentsModule,
+    AttemptsModule,
     CalendarModule,
     ResourcesModule,
     LearningModule,

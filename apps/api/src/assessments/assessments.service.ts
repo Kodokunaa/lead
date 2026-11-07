@@ -28,6 +28,7 @@ import {
   assessmentObjectives,
   assessmentQuestions,
   assessments,
+  attempts,
   classSections,
   courses,
   enrollments,
@@ -441,6 +442,17 @@ export class AssessmentsService {
       editor,
       async (tx, assessment) => {
         if (assessment.status === 'draft') return;
+        // Attempts start while sharing this row's lock, so none can begin meanwhile.
+        const [started] = await tx
+          .select({ id: attempts.id })
+          .from(attempts)
+          .where(eq(attempts.assessmentId, assessment.id))
+          .limit(1);
+        if (started) {
+          throw new ConflictException(
+            'Students have already started this assessment, so it cannot be unpublished.',
+          );
+        }
         await tx
           .update(assessments)
           .set({ status: 'draft', publishedAt: null, updatedAt: new Date() })

@@ -28,7 +28,13 @@ interface ShellProps {
  * appears, so moving from lesson to lesson (each a fresh page) lands keyboard and screen-reader
  * users on the new title instead of nowhere.
  */
-function PageShell({ back, title, subtitle, className = 'max-w-5xl', children }: ShellProps) {
+export function PageShell({
+  back,
+  title,
+  subtitle,
+  className = 'max-w-5xl',
+  children,
+}: ShellProps) {
   const heading = useFocusOnMount<HTMLHeadingElement>();
   return (
     <section aria-labelledby="page-title" className={className}>
@@ -48,7 +54,7 @@ function PageShell({ back, title, subtitle, className = 'max-w-5xl', children }:
 }
 
 /** Loading or error, still with a heading and a way back (e.g. "No such class."). */
-function StateShell({
+export function StateShell({
   back,
   title,
   state,
