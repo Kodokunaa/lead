@@ -37,6 +37,7 @@ function details(overrides: Partial<AssessmentDetails> = {}): AssessmentDetails 
     instructions: '',
     timeLimitMinutes: null,
     maxAttempts: 1,
+    acceptLate: false,
     objectiveIds: [],
     publishedAt: null,
     updatedAt: '2026-11-02T00:00:00.000Z',

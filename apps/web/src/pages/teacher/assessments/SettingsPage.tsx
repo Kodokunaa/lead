@@ -41,6 +41,7 @@ function savedVersion(details: AssessmentDetails): string {
     details.dueAt,
     details.timeLimitMinutes,
     details.maxAttempts,
+    details.acceptLate,
     details.objectiveIds,
     details.status,
   ]);
@@ -61,6 +62,7 @@ function SettingsForm({ details, announce }: { details: AssessmentDetails; annou
         dueAt: fromManilaInput(field(form, 'dueAt')),
         ...(timed ? { timeLimitMinutes: field(form, 'timeLimitMinutes') } : {}),
         maxAttempts: field(form, 'maxAttempts'),
+        ...(timed ? {} : { acceptLate: form.get('acceptLate') === 'on' }),
         objectiveIds: form.getAll('objectiveIds').filter((value) => typeof value === 'string'),
       },
     });
@@ -132,6 +134,17 @@ function SettingsForm({ details, announce }: { details: AssessmentDetails; annou
                 defaultValue={details.maxAttempts}
               />
             </div>
+            {!timed && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="acceptLate"
+                  defaultChecked={details.acceptLate}
+                  className="size-4 accent-brand"
+                />
+                Accept late submissions (marked late)
+              </label>
+            )}
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-sm font-medium">Objective mapping</legend>
               {details.courseObjectives.length === 0 ? (

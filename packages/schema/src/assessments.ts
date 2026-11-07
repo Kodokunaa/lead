@@ -76,6 +76,8 @@ const settingsFields = {
   /** Minutes; blank means untimed. Used by quizzes and examinations only. */
   timeLimitMinutes: z.preprocess(blankToNull, z.coerce.number().int().min(1).max(600).nullable()),
   maxAttempts: z.coerce.number().int().min(1).max(10),
+  /** Assignments and projects: accept submissions after the due date, marked late. */
+  acceptLate: z.boolean(),
   objectiveIds: z
     .array(z.uuid())
     .max(MAX_ASSESSMENT_OBJECTIVES)
@@ -228,6 +230,7 @@ export interface AssessmentDetails extends AssessmentSummary {
   readonly instructions: string;
   readonly timeLimitMinutes: number | null;
   readonly maxAttempts: number;
+  readonly acceptLate: boolean;
   readonly objectiveIds: readonly string[];
   readonly publishedAt: string | null;
   readonly updatedAt: string;

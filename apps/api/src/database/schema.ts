@@ -23,11 +23,13 @@ import {
   CALENDAR_EVENT_KINDS,
   CONTENT_STATUSES,
   DIFFICULTIES,
+  GRADE_STATUSES,
   QUESTION_KINDS,
   RESOURCE_STATUSES,
   ENROLLMENT_STATUSES,
   ROLES,
   SEMESTERS,
+  SUBMISSION_STATUSES,
   type AuditAction,
 } from '@lead/schema';
 
@@ -564,6 +566,8 @@ export const assessments = pgTable(
     /** Null means untimed. */
     timeLimitMinutes: integer('time_limit_minutes'),
     maxAttempts: integer('max_attempts').notNull().default(1),
+    /** Assignments and projects: submissions after the due date are accepted, marked late. */
+    acceptLate: boolean('accept_late').notNull().default(false),
     status: contentStatusEnum('status').notNull().default('draft'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
@@ -759,6 +763,109 @@ export const attemptAnswers = pgTable(
 );
 
 export type AttemptRow = typeof attempts.$inferSelect;
+
+export const submissionStatusEnum = pgEnum('submission_status', SUBMISSION_STATUSES);
+export const gradeStatusEnum = pgEnum('grade_status', GRADE_STATUSES);
+
+/**
+ * A file a student hands in for an assignment or project (S12). The current draft is replaced
+ * by a new upload; confirming it makes it a numbered submission. One draft at a time.
+ */
+export const submissions = pgTable(
+  'submissions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'restrict' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    /** Set when submitted (1, 2, …); null while a draft. */
+    number: integer('number'),
+    status: submissionStatusEnum('status').notNull().default('draft'),
+    fileName: text('file_name').notNull(),
+    storedName: text('stored_name').notNull(),
+    contentType: text('content_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    sha256: text('sha256').notNull(),
+    note: text('note').notNull().default(''),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    late: boolean('late').notNull().default(false),
+  },
+  (table) => [
+    uniqueIndex('submissions_number_idx').on(table.assessmentId, table.studentId, table.number),
+    uniqueIndex('submissions_one_draft_idx')
+      .on(table.assessmentId, table.studentId)
+      .where(sql`${table.status} = 'draft'`),
+    uniqueIndex('submissions_stored_name_idx').on(table.storedName),
+    index('submissions_student_idx').on(table.studentId),
+    check(
+      'submissions_submitted_check',
+      sql`(${table.status} = 'draft') = (${table.number} is null and ${table.submittedAt} is null)`,
+    ),
+  ],
+);
+
+/**
+ * A teacher's grade for one student on one assessment (T14): the graded submission, the score,
+ * feedback, and whether the student can see it yet.
+ */
+export const grades = pgTable(
+  'grades',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    assessmentId: uuid('assessment_id')
+      .notNull()
+      .references(() => assessments.id, { onDelete: 'restrict' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    submissionId: uuid('submission_id').references(() => submissions.id, { onDelete: 'restrict' }),
+    score: integer('score').notNull(),
+    maxPoints: integer('max_points').notNull(),
+    feedback: text('feedback').notNull().default(''),
+    status: gradeStatusEnum('status').notNull().default('draft'),
+    gradedBy: uuid('graded_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    gradedAt: timestamp('graded_at', { withTimezone: true }).notNull().defaultNow(),
+    releasedAt: timestamp('released_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('grades_student_idx').on(table.assessmentId, table.studentId),
+    check('grades_score_check', sql`${table.score} between 0 and ${table.maxPoints}`),
+    check(
+      'grades_released_check',
+      sql`(${table.status} = 'released') = (${table.releasedAt} is not null)`,
+    ),
+  ],
+);
+
+/** The rubric level a grade gives each criterion. */
+export const gradeRubricScores = pgTable(
+  'grade_rubric_scores',
+  {
+    gradeId: uuid('grade_id')
+      .notNull()
+      .references(() => grades.id, { onDelete: 'cascade' }),
+    criterionId: uuid('criterion_id')
+      .notNull()
+      .references(() => rubricCriteria.id, { onDelete: 'restrict' }),
+    levelId: uuid('level_id')
+      .notNull()
+      .references(() => rubricLevels.id, { onDelete: 'restrict' }),
+  },
+  (table) => [primaryKey({ columns: [table.gradeId, table.criterionId] })],
+);
+
+export type SubmissionRow = typeof submissions.$inferSelect;
+export type GradeRow = typeof grades.$inferSelect;
 
 export type ProgramRow = typeof programs.$inferSelect;
 export type TermRow = typeof academicTerms.$inferSelect;

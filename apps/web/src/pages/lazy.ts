@@ -108,3 +108,12 @@ export const AttemptReviewPage = page(() =>
 export const AttemptResultPage = page(() =>
   import('./student/assessments/ResultPage').then((m) => m.AttemptResultPage),
 );
+export const AssignmentPage = page(() =>
+  import('./student/assessments/AssignmentPage').then((m) => m.AssignmentPage),
+);
+export const GradingQueuePage = page(() =>
+  import('./teacher/grading/GradingQueuePage').then((m) => m.GradingQueuePage),
+);
+export const GradingPage = page(() =>
+  import('./teacher/grading/GradingPage').then((m) => m.GradingPage),
+);

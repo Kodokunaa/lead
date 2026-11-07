@@ -36,6 +36,7 @@ import {
   questionChoices,
   rubricCriteria,
   rubricLevels,
+  submissions,
   teachingAssignments,
   type AssessmentRow,
   type QuestionRow,
@@ -161,6 +162,9 @@ export class AssessmentsService {
       if (input.timeLimitMinutes && !usesQuestions(assessment.kind)) {
         throw new BadRequestException('Only quizzes and examinations have a time limit.');
       }
+      if (input.acceptLate && usesQuestions(assessment.kind)) {
+        throw new BadRequestException('Only assignments and projects accept late work.');
+      }
       const opensAt = input.opensAt === undefined ? assessment.opensAt : toDate(input.opensAt);
       const dueAt = input.dueAt === undefined ? assessment.dueAt : toDate(input.dueAt);
       if (opensAt && dueAt && dueAt <= opensAt) {
@@ -183,6 +187,7 @@ export class AssessmentsService {
             ? assessment.timeLimitMinutes
             : input.timeLimitMinutes,
         maxAttempts: input.maxAttempts ?? assessment.maxAttempts,
+        acceptLate: input.acceptLate ?? assessment.acceptLate,
       };
       const before: Record<string, unknown> = {};
       const after: Record<string, unknown> = {};
@@ -443,12 +448,21 @@ export class AssessmentsService {
       async (tx, assessment) => {
         if (assessment.status === 'draft') return;
         // Attempts start while sharing this row's lock, so none can begin meanwhile.
-        const [started] = await tx
-          .select({ id: attempts.id })
-          .from(attempts)
-          .where(eq(attempts.assessmentId, assessment.id))
-          .limit(1);
-        if (started) {
+        const [[started], [handedIn]] = await Promise.all([
+          tx
+            .select({ id: attempts.id })
+            .from(attempts)
+            .where(eq(attempts.assessmentId, assessment.id))
+            .limit(1),
+          tx
+            .select({ id: submissions.id })
+            .from(submissions)
+            .where(
+              and(eq(submissions.assessmentId, assessment.id), eq(submissions.status, 'submitted')),
+            )
+            .limit(1),
+        ]);
+        if (started || handedIn) {
           throw new ConflictException(
             'Students have already started this assessment, so it cannot be unpublished.',
           );
@@ -597,6 +611,7 @@ export class AssessmentsService {
       instructions: assessment.instructions,
       timeLimitMinutes: assessment.timeLimitMinutes,
       maxAttempts: assessment.maxAttempts,
+      acceptLate: assessment.acceptLate,
       objectiveIds: courseObjectives
         .filter((objective) => objectiveIds.includes(objective.id))
         .map((objective) => objective.id),
@@ -614,6 +629,7 @@ export class AssessmentsService {
           dueAt: assessment.dueAt,
           timeLimitMinutes: assessment.timeLimitMinutes,
           maxAttempts: assessment.maxAttempts,
+          acceptLate: assessment.acceptLate,
           questions,
           rubric,
         },

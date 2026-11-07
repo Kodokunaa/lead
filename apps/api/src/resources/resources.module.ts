@@ -8,6 +8,6 @@ import { ResourcesService } from './resources.service';
   imports: [ContentModule],
   controllers: [TeacherResourcesController, AdminResourcesController],
   providers: [ResourcesService, ResourceStorage],
-  exports: [ResourcesService],
+  exports: [ResourcesService, ResourceStorage],
 })
 export class ResourcesModule {}

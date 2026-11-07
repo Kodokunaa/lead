@@ -43,7 +43,12 @@ export function AssessmentsPage() {
             Current term · quizzes, examinations, assignments and projects of your classes
           </p>
         </div>
-        <CreateDialog classes={result.status === 'ready' ? result.data.classes : null} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/teacher/grading" className="link text-sm">
+            Submissions and grading queue
+          </Link>
+          <CreateDialog classes={result.status === 'ready' ? result.data.classes : null} />
+        </div>
       </div>
 
       {result.status === 'ready' && result.data.classes.length > 1 && (

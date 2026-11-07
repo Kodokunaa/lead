@@ -26,10 +26,13 @@ import {
   AssessmentRubricPage,
   AssessmentSettingsPage,
   AssessmentsPage,
+  AssignmentPage,
   AttemptPage,
   AttemptResultPage,
   AttemptReviewPage,
   ContentHomePage,
+  GradingPage,
+  GradingQueuePage,
   CourseRecordPage,
   CourseOutlinePage,
   LessonEditorPage,
@@ -179,6 +182,26 @@ function AttemptResultView(): ReactElement {
     select: (params: { attemptId: string }) => params.attemptId,
   });
   return <AttemptResultPage key={attemptId} attemptId={attemptId} />;
+}
+
+function AssignmentView(): ReactElement {
+  const assessmentId = assignmentRoute.useParams({
+    select: (params: { assessmentId: string }) => params.assessmentId,
+  });
+  return <AssignmentPage key={assessmentId} assessmentId={assessmentId} />;
+}
+
+function GradingView(): ReactElement {
+  const { assessmentId, studentId } = gradingRoute.useParams({
+    select: (params: { assessmentId: string; studentId: string }) => params,
+  });
+  return (
+    <GradingPage
+      key={`${assessmentId}:${studentId}`}
+      assessmentId={assessmentId}
+      studentId={studentId}
+    />
+  );
 }
 
 function ResourcesRoute(): ReactElement {
@@ -438,6 +461,28 @@ const attemptResultRoute = createRoute({
   component: AttemptResultView,
 });
 
+const assignmentRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/student/assignments/$assessmentId',
+  beforeLoad: requireRole('student'),
+  component: AssignmentView,
+});
+
+/** T13; reached from Assessment management (it has no sidebar entry of its own). */
+const gradingQueueRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/grading',
+  beforeLoad: requireRole('teacher'),
+  component: GradingQueuePage,
+});
+
+const gradingRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: '/teacher/grading/$assessmentId/$studentId',
+  beforeLoad: requireRole('teacher'),
+  component: GradingView,
+});
+
 const resourcesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: '/teacher/content/$courseId/resources',
@@ -523,6 +568,9 @@ const extraSignedInRoutes = [
   calendarRoute,
   courseRecordRoute,
   resourcesRoute,
+  assignmentRoute,
+  gradingQueueRoute,
+  gradingRoute,
   studentAssessmentRoute,
   attemptRoute,
   attemptReviewRoute,

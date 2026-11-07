@@ -1,7 +1,9 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   SAVE_GRACE_SECONDS,
+  usesQuestions,
   type AnswerInput,
+  type AssessmentKind,
   type AnswerSaved,
   type AttemptQuestion,
   type AttemptResult,
@@ -27,10 +29,12 @@ import {
   enrollments,
   learningObjectives,
   questionChoices,
+  submissions,
   type AssessmentRow,
   type AttemptRow,
   type UserRow,
 } from '../database/schema';
+import { submissionState } from '../submissions/submission-rules';
 import { isAnswered, scoreAttempt, type ScoredQuestion } from './attempt-scoring';
 
 /** The student taking an assessment, for the audit trail. */
@@ -76,17 +80,18 @@ export class AttemptsService {
 
   // ---------- S07, S08
 
+  /** S07: quizzes and examinations, and assignments and projects (submitted through S12). */
   async list(student: UserRow, sectionId?: string): Promise<StudentAssessmentSummary[]> {
     const rows = await this.visibleQuery(this.db, student)
       .where(
         and(
-          this.visibleWhere(student),
+          this.visibleWhere(student, ALL_KINDS),
           sectionId === undefined ? undefined : eq(assessments.sectionId, sectionId),
         ),
       )
       .orderBy(asc(assessments.dueAt), asc(assessments.title));
     const ids = rows.map((row) => row.assessment.id);
-    const [codes, mine] = await Promise.all([
+    const [codes, mine, handedIn] = await Promise.all([
       this.objectiveCodes(ids),
       ids.length === 0
         ? Promise.resolve([])
@@ -94,16 +99,47 @@ export class AttemptsService {
             .select()
             .from(attempts)
             .where(and(eq(attempts.studentId, student.id), inArray(attempts.assessmentId, ids))),
+      ids.length === 0
+        ? Promise.resolve([])
+        : this.db
+            .select({ assessmentId: submissions.assessmentId })
+            .from(submissions)
+            .where(
+              and(
+                eq(submissions.studentId, student.id),
+                eq(submissions.status, 'submitted'),
+                inArray(submissions.assessmentId, ids),
+              ),
+            ),
     ]);
     const now = new Date();
-    return rows.map((row) =>
-      toSummary(
-        row,
-        codes.get(row.assessment.id) ?? [],
-        mine.filter((attempt) => attempt.assessmentId === row.assessment.id),
-        now,
-      ),
-    );
+    return rows.map((row) => {
+      const objectiveCodes = codes.get(row.assessment.id) ?? [];
+      if (usesQuestions(row.assessment.kind)) {
+        return toSummary(
+          row,
+          objectiveCodes,
+          mine.filter((attempt) => attempt.assessmentId === row.assessment.id),
+          now,
+        );
+      }
+      const submitted = handedIn.filter((item) => item.assessmentId === row.assessment.id).length;
+      const { assessment } = row;
+      return {
+        ...toSummary(row, objectiveCodes, [], now),
+        state: submissionState(
+          {
+            opensAt: assessment.opensAt!,
+            dueAt: assessment.dueAt!,
+            maxAttempts: assessment.maxAttempts,
+            acceptLate: assessment.acceptLate,
+          },
+          submitted,
+          now,
+        ),
+        attemptsUsed: submitted,
+      };
+    });
   }
 
   async details(student: UserRow, assessmentId: string): Promise<StudentAssessmentDetails> {
@@ -580,12 +616,12 @@ export class AttemptsService {
       .$dynamic();
   }
 
-  private visibleWhere(student: UserRow) {
+  private visibleWhere(student: UserRow, kinds: readonly AssessmentKind[] = QUESTION_KINDS) {
     return and(
       eq(enrollments.studentId, student.id),
       eq(enrollments.status, 'enrolled'),
       eq(assessments.status, 'published'),
-      inArray(assessments.kind, ['quiz', 'exam']),
+      inArray(assessments.kind, [...kinds]),
     );
   }
 
@@ -638,6 +674,10 @@ export class AttemptsService {
     );
   }
 }
+
+/** Attempts are for quizzes and examinations; the list (S07) shows every kind. */
+const QUESTION_KINDS: readonly AssessmentKind[] = ['quiz', 'exam'];
+const ALL_KINDS: readonly AssessmentKind[] = ['quiz', 'exam', 'assignment', 'project'];
 
 /** Read requests that submit an expired attempt record no client details. */
 const NO_CLIENT: ClientInfo = { ipAddress: null, userAgent: null };

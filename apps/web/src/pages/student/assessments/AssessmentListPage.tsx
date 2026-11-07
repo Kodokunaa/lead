@@ -1,4 +1,4 @@
-import { ASSESSMENT_KIND_LABELS, type StudentAssessmentSummary } from '@lead/schema';
+import { ASSESSMENT_KIND_LABELS, usesQuestions, type StudentAssessmentSummary } from '@lead/schema';
 import { Link } from '@tanstack/react-router';
 import { Card } from '@/components/ui/card';
 import {
@@ -31,7 +31,7 @@ export function StudentAssessmentsPage() {
         Assessments and activities
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Quizzes and examinations of the classes you are enrolled in
+        Quizzes, examinations, assignments and projects of the classes you are enrolled in
       </p>
       <div className="mt-5">
         {result.status === 'loading' ? (
@@ -40,7 +40,7 @@ export function StudentAssessmentsPage() {
           <FormMessage tone="error">{result.message}</FormMessage>
         ) : result.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No quizzes or examinations yet. They appear here once your teachers publish them.
+            No assessments yet. They appear here once your teachers publish them.
           </p>
         ) : (
           <Card className="animate-rise gap-0 overflow-hidden py-0">
@@ -78,14 +78,25 @@ export function StudentAssessmentsPage() {
                       <StateBadge state={item.state} />
                     </TableCell>
                     <TableCell>
-                      <Link
-                        to="/student/assessments/$assessmentId"
-                        params={{ assessmentId: item.id }}
-                        className="link"
-                        aria-label={`${ACTIONS[item.state]} ${item.title}`}
-                      >
-                        {ACTIONS[item.state]}
-                      </Link>
+                      {usesQuestions(item.kind) ? (
+                        <Link
+                          to="/student/assessments/$assessmentId"
+                          params={{ assessmentId: item.id }}
+                          className="link"
+                          aria-label={`${ACTIONS[item.state]} ${item.title}`}
+                        >
+                          {ACTIONS[item.state]}
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/student/assignments/$assessmentId"
+                          params={{ assessmentId: item.id }}
+                          className="link"
+                          aria-label={`${item.state === 'available' ? 'Open' : 'View'} ${item.title}`}
+                        >
+                          {item.state === 'available' ? 'Open' : 'View'}
+                        </Link>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

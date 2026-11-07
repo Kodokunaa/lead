@@ -36,6 +36,7 @@ export interface ChecklistInput {
   readonly dueAt: Date | null;
   readonly timeLimitMinutes: number | null;
   readonly maxAttempts: number;
+  readonly acceptLate: boolean;
   readonly questions: readonly Question[];
   readonly rubric: readonly RubricCriterion[];
 }
@@ -61,7 +62,7 @@ export function publicationChecklist(input: ChecklistInput, now: Date): Checklis
       ok: true,
       detail: usesQuestions(input.kind)
         ? `${input.timeLimitMinutes ? plural(input.timeLimitMinutes, 'minute') : 'Untimed'} / ${plural(input.maxAttempts, 'attempt')}`
-        : plural(input.maxAttempts, 'submission'),
+        : `${plural(input.maxAttempts, 'submission')} / late work ${input.acceptLate ? 'accepted, marked late' : 'not accepted'}`,
       fix: 'settings',
     },
     datesItem(input.opensAt, input.dueAt, now),

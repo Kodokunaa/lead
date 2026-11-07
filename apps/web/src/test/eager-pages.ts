@@ -37,3 +37,6 @@ export { StudentAssessmentPage } from '../pages/student/assessments/Instructions
 export { AttemptPage } from '../pages/student/assessments/AttemptPage';
 export { AttemptReviewPage } from '../pages/student/assessments/ReviewAttemptPage';
 export { AttemptResultPage } from '../pages/student/assessments/ResultPage';
+export { AssignmentPage } from '../pages/student/assessments/AssignmentPage';
+export { GradingQueuePage } from '../pages/teacher/grading/GradingQueuePage';
+export { GradingPage } from '../pages/teacher/grading/GradingPage';

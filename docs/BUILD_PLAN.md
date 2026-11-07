@@ -192,7 +192,13 @@ Slice 3b (quiz and examination attempts S07–S11) — done:
 - On submission multiple-choice answers are scored and written answers wait for the teacher. The result shows the score, the points awaiting grading and the evidence per objective, and says it is not the official grade. The answer key never reaches the student.
 - One attempt in progress per student (enrollment row lock plus a partial unique index; a test forces two starts at once and another drops the student while starting). Teachers can no longer unpublish an assessment once an attempt exists.
 
-Next: slice 3c (assignment submissions S12, grading queue and review T13–T14, reasoned grade changes X05).
+Slice 3c (assignment submissions S12, grading T13–T14, X05) — done:
+
+- Students see assignments and projects in their list and open S12: instructions, objectives, the rubric with every level, and their submissions. A file (same types and 20 MB limit as resources, checked by content) is uploaded as a draft that can be replaced, then confirmed with "This is the file I intend to submit"; each confirmed file is a numbered submission, up to the allowed number. Teachers choose whether late work is accepted; late submissions are marked late. Drafts stay private to the student.
+- T13 lists each enrolled student's latest submission (needs review, draft grade, released) and missing work after the due date, filtered by class and status. T14 shows the submission history with downloads, scores each rubric criterion (the total is computed on the server), takes feedback, and saves a draft grade or releases it. Students see only released grades. Changing a released grade needs a reason, kept in the audit log (X05).
+- Uploads and submissions lock the student's enrollment row (a test forces two uploads at once); a failed save never leaves its file behind, and replacing a draft removes the old file only after the new one is committed. Student uploads have their own limit (60 a minute per address) because a classroom shares one address.
+
+Next: slice 3c2 (written quiz answers in the grading queue), then 3d (gradebook T15, S13, grading policy A19).
 
 ## Seed data
 

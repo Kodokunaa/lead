@@ -42,7 +42,7 @@ const id = new ParseUUIDPipe({ version: '4' });
  * One file per request, kept in memory (multer's default) up to the size limit. File names are
  * read as UTF-8 (multer's default is Latin-1, which garbles names like "Pagsusulit ñ.pdf").
  */
-const upload = FileInterceptor('file', {
+export const upload = FileInterceptor('file', {
   limits: { fileSize: MAX_RESOURCE_BYTES, files: 1, fields: 30, parts: 32 },
   defParamCharset: 'utf8',
 });
@@ -51,7 +51,7 @@ const upload = FileInterceptor('file', {
  * Uploads are held in memory while checked, so each address gets only a few a minute
  * (UPLOADS_PER_MINUTE, validated with the rest of the environment at startup).
  */
-const UPLOAD_LIMIT = {
+export const UPLOAD_LIMIT = {
   default: { limit: () => loadEnv(process.env).UPLOADS_PER_MINUTE, ttl: 60_000 },
 };
 
